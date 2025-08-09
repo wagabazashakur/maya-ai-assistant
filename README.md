@@ -65,16 +65,18 @@ Mocking highlights:
   - `src/__tests__/memory.test.ts` verifies capping and persistence for usage and audit histories.
   - `src/__tests__/useMaya.audit.test.tsx` runs the Audit flow end-to-end with mocked Gemini.
   - `src/__tests__/useMaya.audit-clear.test.tsx` confirms Clear Audit History behavior with a confirm dialog.
+  - `src/__tests__/maya-explain.test.tsx` verifies the new `maya explain <path>` flow and Explain History persistence.
 
 ## Feature Roadmap
 
 ### Current Features
 - CLI `maya audit` command with Gemini API integration
 - Audit History panel with localStorage persistence and UI controls
+- New CLI `maya explain <path>` command (mocked) with Explain History panel and persistence
 - Comprehensive test coverage with Vitest and mocks
 
 ### Next Steps
-- Expand Maya’s safe subcommands (e.g., explain, optimize)
+- Expand Maya’s safe subcommands (e.g., optimize)
 - UI trigger buttons for common commands
 - Exportable audit/history logs
 
@@ -98,6 +100,20 @@ A short screencast (~10–20 seconds) showing:
 3. Opening the Secondary Display to view the Audit History panel
 
 You can also use the generated GIF: `images/quickstart.gif`.
+
+### maya explain <path>
+
+- Safe subcommand that analyzes a file and outputs a JSON explanation. Example output shape:
+
+```
+{
+  "file": "src/index.ts",
+  "summary": "Entry point",
+  "details": ["Bootstraps app", "Renders root"]
+}
+```
+
+- History is saved and visible under the Explain History panel in the Secondary Display.
 
 ## FAQ / Troubleshooting
 

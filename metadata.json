@@ -1,0 +1,5 @@
+{
+  "name": "Maya V.1 - Intelligent CLI Assistant",
+  "description": "An intelligent Linux-based command-line assistant designed to evolve. It offloads complex cognitive tasks to Gemini AI, serving as an external brain, while retaining sovereignty over its core decision-making.",
+  "requestFramePermissions": []
+}

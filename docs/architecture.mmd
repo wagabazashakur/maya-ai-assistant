@@ -1,0 +1,40 @@
+flowchart TD
+  subgraph UI[UI Components]
+    App[App]
+    Cli[CliPanel]
+    Log[LogPanel]
+    Views[Vim/Less/Blame/Rebase/Gdb/Tail Views]
+  end
+
+  subgraph Hook[State Hub]
+    useMaya[useMaya Hook]
+  end
+
+  subgraph Core[Core Services]
+    Gemini[core/gemini.ts]
+    Memory[core/memory.ts]
+    Safety[core/safety.ts]
+    Types[types/index.ts]
+  end
+
+  App --> useMaya
+  Cli --> useMaya
+  Log --> useMaya
+  Views --> useMaya
+
+  useMaya <--> Gemini
+  useMaya <--> Memory
+  useMaya <--> Safety
+  useMaya -. types .- Types
+
+  subgraph Persistence[Browser Persistence]
+    LS[localStorage]
+  end
+
+  Memory <--> LS
+
+  subgraph External[LLM]
+    GeminiAPI[Google GenAI]
+  end
+
+  Gemini <--> GeminiAPI
