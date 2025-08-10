@@ -1,4 +1,4 @@
-import { LongTermMemory, CorrectionMemory, UserConfiguration, GitLog, LogPanelVisibility, Aliases } from '../types';
+import { LongTermMemory, CorrectionMemory, UserConfiguration, GitLog, LogPanelVisibility, Aliases, FeedbackEntry, ImprovementHistoryEntry } from '../types';
 
 const LTM_KEY = 'maya_ltm';
 const CORRECTIONS_KEY = 'maya_corrections';
@@ -27,6 +27,11 @@ const DIAGNOSE_HISTORY_KEY = 'maya_diagnose_history';
 const DIAGNOSE_HISTORY_LIMIT = 50;
 const SUGGEST_HISTORY_KEY = 'maya_suggest_history';
 const SUGGEST_HISTORY_LIMIT = 100;
+// --- Continuous Learning keys ---
+const FEEDBACK_HISTORY_KEY = 'maya_feedback_history';
+const FEEDBACK_HISTORY_LIMIT = 500;
+const IMPROVE_HISTORY_KEY = 'maya_improve_history';
+const IMPROVE_HISTORY_LIMIT = 50;
 // --- Phase 3: panel filters ---
 const PANEL_FILTERS_KEY = 'maya_panel_filters';
 
@@ -347,6 +352,46 @@ export const setSuggestHistory = (history: any[]) => {
     }
 };
 
+// --- Continuous Learning: feedback persistence ---
+export const getFeedbackHistory = (): FeedbackEntry[] => {
+    try {
+        const stored = localStorage.getItem(FEEDBACK_HISTORY_KEY);
+        return stored ? JSON.parse(stored) : [];
+    } catch (error) {
+        console.error('Failed to parse Feedback History from localStorage:', error);
+        return [];
+    }
+};
+
+export const setFeedbackHistory = (history: FeedbackEntry[]) => {
+    try {
+        const capped = history.slice(-FEEDBACK_HISTORY_LIMIT);
+        localStorage.setItem(FEEDBACK_HISTORY_KEY, JSON.stringify(capped));
+    } catch (error) {
+        console.error('Failed to save Feedback History to localStorage:', error);
+    }
+};
+
+// --- Continuous Learning: improvement history ---
+export const getImproveHistory = (): ImprovementHistoryEntry[] => {
+    try {
+        const stored = localStorage.getItem(IMPROVE_HISTORY_KEY);
+        return stored ? JSON.parse(stored) : [];
+    } catch (error) {
+        console.error('Failed to parse Improve History from localStorage:', error);
+        return [];
+    }
+};
+
+export const setImproveHistory = (history: ImprovementHistoryEntry[]) => {
+    try {
+        const capped = history.slice(-IMPROVE_HISTORY_LIMIT);
+        localStorage.setItem(IMPROVE_HISTORY_KEY, JSON.stringify(capped));
+    } catch (error) {
+        console.error('Failed to save Improve History to localStorage:', error);
+    }
+};
+
 // --- Phase 3: panel filters persistence ---
 export type PanelFilters = {
     audit?: string;
@@ -387,6 +432,9 @@ export type MayaExportPayload = {
     diagnose: any[];
     suggest: any[];
     oi: any[];
+    // Continuous Learning additions
+    feedback?: FeedbackEntry[];
+    improve?: ImprovementHistoryEntry[];
 };
 
 export const exportAllHistories = (): MayaExportPayload => {
@@ -400,6 +448,8 @@ export const exportAllHistories = (): MayaExportPayload => {
         diagnose: getDiagnoseHistory(),
         suggest: getSuggestHistory(),
         oi: getOIHistory(),
+        feedback: getFeedbackHistory(),
+        improve: getImproveHistory(),
     };
 };
 
@@ -417,6 +467,9 @@ export const importAllHistories = (payload: Partial<MayaExportPayload>, mode: 'r
         apply(setDiagnoseHistory, getDiagnoseHistory(), safeArray(payload.diagnose));
         apply(setSuggestHistory, getSuggestHistory(), safeArray(payload.suggest));
         apply(setOIHistory, getOIHistory(), safeArray(payload.oi));
+        // Continuous Learning additions
+        apply(setFeedbackHistory, getFeedbackHistory(), safeArray(payload.feedback));
+        apply(setImproveHistory, getImproveHistory(), safeArray(payload.improve));
     } catch (e) {
         console.error('Failed to import histories:', e);
         throw e;

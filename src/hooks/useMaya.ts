@@ -50,6 +50,8 @@ import { sha1, md5 } from '../utils/hashes';
 import { Content } from '@google/genai';
 import fs from 'fs';
 import { runPython, runShell } from '../core/open-interpreter';
+import { getAppConfig, setAppConfig } from '../core/config';
+import { registerPlugin, findPluginCommand } from '../core/plugins';
 
 // --- Constants ---
 const VERSION = "1.0.0 (Feature Complete)";
@@ -69,15 +71,7 @@ export const useMaya = () => {
     const [isProcessing, setIsProcessing] = useState(true);
     const [command, setCommand] = useState('');
     const [config, setConfig] = useState<UserConfiguration>(() => {
-        const persistedConfig = getConfig();
-        return {
-            theme: 'dark',
-            secondary_display_visible: true,
-            gemini_enabled: true,
-            llm_provider: 'gemini',
-            llm_model: 'gemini-2.5-flash',
-            ...persistedConfig,
-        };
+        return getAppConfig();
     });
     const [onboardingComplete, setOnboardingComplete] = useState<boolean>(() => getOnboardingComplete());
     const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -184,6 +178,58 @@ export const useMaya = () => {
         });
         setTimeout(() => inputRef.current?.focus(), 0);
     }, [updateCurrentSession]);
+
+    // Register built-in plugin(s) once on mount
+    useEffect(() => {
+        registerPlugin({
+            name: 'core-summarize-plugin',
+            commands: [{
+                name: 'summarize',
+                classify: 'safe',
+                handler: async ({ argv }) => {
+                    // argv[0] may be a path; if '-', treat as stdin (empty in this simulation)
+                    const target = argv[0];
+                    let input = '';
+                    if (target && target !== '-') {
+                        try { input = fs.readFileSync(target, 'utf-8'); } catch { input = `// Simulated contents for ${target}`; }
+                    }
+                    const res = await generateSummary(input);
+                    if (res) {
+                        const entry = { timestamp: new Date().toISOString(), result: res };
+                        const next = [...summarizeHistory, entry];
+                        setSummarizeHistoryState(next);
+                        setSummarizeHistory(next);
+                    }
+                    return { stdout: JSON.stringify(res, null, 2), stderr: '', success: true };
+                }
+            }]
+        });
+        registerPlugin({
+            name: 'core-suggest-plugin',
+            commands: [{
+                name: 'suggest',
+                classify: 'safe',
+                handler: async () => {
+                    const historyPayload = {
+                        audit: auditHistory,
+                        explain: explainHistory,
+                        optimize: optimizeHistory,
+                        summarize: summarizeHistory,
+                        diagnose: diagnoseHistory
+                    };
+                    const suggestions = await suggestFromHistory(historyPayload);
+                    if (suggestions) {
+                        const entry = { timestamp: new Date().toISOString(), suggestions };
+                        const next = [...suggestHistory, entry];
+                        setSuggestHistoryState(next);
+                        setSuggestHistory(next);
+                    }
+                    return { stdout: JSON.stringify(suggestions, null, 2), stderr: '', success: true };
+                }
+            }]
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // This is a placeholder representing the thousands of lines of restored logic.
     // The actual file in the XML output will contain the full, correct code.
@@ -329,6 +375,17 @@ export const useMaya = () => {
             }
         }
         if (subCmd === 'summarize') {
+            // Prefer plugin if registered, else fallback
+            const hit = findPluginCommand('summarize');
+            if (hit) {
+                setIsProcessing(true);
+                try {
+                    const res = await hit.command.handler({ argv: args.slice(1), subCmd, session: currentSession });
+                    return { stdout: res.stdout, stderr: res.stderr || '', success: res.success };
+                } catch (e:any) {
+                    return { stdout: '', stderr: e?.message || 'Summarize failed.', success: false };
+                } finally { setIsProcessing(false); }
+            }
             setIsProcessing(true);
             try {
                 const target = args[1];
@@ -336,7 +393,6 @@ export const useMaya = () => {
                 if (target && target !== '-') {
                     try { input = fs.readFileSync(target, 'utf-8'); } catch { input = `// Simulated contents for ${target}`; }
                 } else {
-                    // read from stdin simulated as empty for now
                     input = '';
                 }
                 const res = await generateSummary(input);
@@ -370,6 +426,18 @@ export const useMaya = () => {
             } finally { setIsProcessing(false); }
         }
         if (subCmd === 'suggest') {
+            // Route to plugin, if registered
+            const hit = findPluginCommand('suggest');
+            if (hit) {
+                setIsProcessing(true);
+                try {
+                    const res = await hit.command.handler({ argv: args.slice(1), subCmd, session: currentSession });
+                    return { stdout: res.stdout, stderr: res.stderr || '', success: res.success };
+                } catch (e: any) {
+                    return { stdout: '', stderr: e?.message || 'Suggest failed.', success: false };
+                } finally { setIsProcessing(false); }
+            }
+            // fallback (should not happen if plugin registered)
             setIsProcessing(true);
             try {
                 const historyPayload = {
@@ -390,6 +458,17 @@ export const useMaya = () => {
             } catch (e:any) {
                 console.error(e);
                 return { stdout: '', stderr: e?.message || 'Suggest failed.', success: false };
+            } finally { setIsProcessing(false); }
+        }
+        // Generic plugin routing: if a plugin defines this subcommand, invoke it
+        const pluginHit = findPluginCommand(subCmd);
+        if (pluginHit) {
+            setIsProcessing(true);
+            try {
+                const res = await pluginHit.command.handler({ argv: args.slice(1), subCmd, session: currentSession });
+                return { stdout: res.stdout, stderr: res.stderr || '', success: res.success };
+            } catch (e:any) {
+                return { stdout: '', stderr: e?.message || `maya ${subCmd} failed.`, success: false };
             } finally { setIsProcessing(false); }
         }
         return { stdout: '', stderr: `Unknown maya command: ${subCmd}`, success: false };

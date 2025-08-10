@@ -97,6 +97,9 @@ export type LogPanelVisibility = {
     summarizeHistoryVisible?: boolean;
     diagnoseHistoryVisible?: boolean;
     suggestHistoryVisible?: boolean;
+    // --- Continuous Learning panels ---
+    feedbackHistoryVisible?: boolean;
+    selfImproveHistoryVisible?: boolean;
 };
 
 export type OnboardingStatus = 'welcome' | 'theme' | 'finished';
@@ -197,6 +200,37 @@ export type DiagnoseReport = {
 export type SuggestionItem = {
     source: 'audit' | 'explain' | 'optimize' | 'summarize' | 'diagnose';
     suggestion: string;
+};
+
+// --- Continuous Learning: Feedback & Improvement ---
+export type FeedbackEntry = {
+    timestamp: string;
+    command: string;
+    rating: number; // 1-5
+    comments?: string;
+    aiResponseId?: number; // optional link to OutputLine or log id
+};
+
+export type ImprovementAction = {
+    id: string;
+    description: string;
+    appliesTo?: string;
+    type: 'alias' | 'config' | 'prompt' | 'doc' | 'other';
+    diff?: string;
+    rollback?: { type: 'alias' | 'config' | 'prompt' | 'other'; payload: any };
+};
+
+export type ImprovementPlan = {
+    generatedAt: string;
+    summary: string;
+    actions: ImprovementAction[];
+    consentRequired: boolean;
+};
+
+export type ImprovementHistoryEntry = {
+    timestamp: string;
+    plan: ImprovementPlan;
+    status?: 'planned' | 'applied' | 'rolled_back' | 'failed';
 };
 
 export type SyntaxToken = {

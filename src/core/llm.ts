@@ -73,7 +73,6 @@ const geminiProvider: LLMProvider = {
 const openaiProvider: LLMProvider = {
   name: 'openai',
   async generateContentJSON(req: GenerateJSONRequest): Promise<string> {
-    // Stub: echo back a trivial JSON acknowledging stub
     const payload = {
       provider: 'openai-stub',
       model: req.model || (getConfig().llm_model as string) || 'gpt-4o-mini',
@@ -89,6 +88,10 @@ const openaiProvider: LLMProvider = {
 let _active: LLMProvider | null = null;
 let _activeKey = '';
 
+export const getProvider = (name: string): LLMProvider => {
+  return name === 'openai' ? openaiProvider : geminiProvider;
+};
+
 export const getLLM = (): LLMProvider => {
   const cfg = getConfig();
   const provider = (cfg.llm_provider as LLMProviderName) || 'gemini';
@@ -98,6 +101,14 @@ export const getLLM = (): LLMProvider => {
   _activeKey = key;
   _active = provider === 'openai' ? openaiProvider : geminiProvider;
   return _active;
+};
+
+// Convenience functions matching requested signatures
+export const generateContentJSON = async (schemaReq: any): Promise<any> => {
+  return getLLM().generateContentJSON(schemaReq);
+};
+export const generateText = async (prompt: string): Promise<string> => {
+  return getLLM().generateText({ prompt });
 };
 
 export const LLMType = { Type };
