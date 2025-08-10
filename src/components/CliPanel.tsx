@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { diffLines } from 'diff';
 import { 
@@ -31,6 +30,12 @@ interface CliPanelProps {
     currentSession: Session;
     onVimAiEdit: () => void;
     onTailExit: () => void;
+    // --- Phase 3 autocomplete ---
+    provideCompletions?: (input: string) => string[];
+    navigateCompletion?: (dir: 'up'|'down') => void;
+    acceptCompletion?: () => string | void;
+    completionCandidates?: string[];
+    completionIndex?: number;
 }
 
 const AnsiColoredText: React.FC<{ text: string }> = ({ text }) => {
@@ -111,7 +116,12 @@ export const CliPanel: React.FC<CliPanelProps> = ({
     onGdbExit,
     currentSession,
     onVimAiEdit,
-    onTailExit
+    onTailExit,
+    provideCompletions,
+    navigateCompletion,
+    acceptCompletion,
+    completionCandidates,
+    completionIndex
 }) => {
     // Destructure UI state from the session object
     const {
@@ -136,7 +146,8 @@ export const CliPanel: React.FC<CliPanelProps> = ({
         gdbState,
         tailState,
         tailOutput,
-        completionCandidates,
+        // completionCandidates from session kept for back-compat, but prefer props when present
+        completionCandidates: sessionCompletions,
         isExecutingScript,
         systemSummary,
         processes,
@@ -160,8 +171,31 @@ export const CliPanel: React.FC<CliPanelProps> = ({
     
     const inputValue = isSearching ? searchQuery : command;
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        isSearching ? setSearchQuery(e.target.value) : setCommand(e.target.value);
+        const val = e.target.value;
+        isSearching ? setSearchQuery(val) : setCommand(val);
+        if (!isSearching && provideCompletions) {
+            provideCompletions(val);
+        }
     };
+
+    const onInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        // First let upstream handle terminal keydown
+        handleKeyDown(e);
+        if (e.defaultPrevented) return;
+        if (!provideCompletions) return;
+        if (e.key === 'ArrowDown') { e.preventDefault(); navigateCompletion && navigateCompletion('down'); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); navigateCompletion && navigateCompletion('up'); }
+        else if (e.key === 'Enter') {
+            const accepted = acceptCompletion && acceptCompletion();
+            if (accepted) e.preventDefault();
+        }
+    };
+
+    const visibleCompletions = completionCandidates || sessionCompletions || [];
+
+    const isInputDisabled = isProcessing || 
+                          (isExecutingScript && !scriptInputState && !atJobState) || 
+                          !!liveViewCommand;
 
     const handleToggleSecondaryDisplay = () => {
         updateConfig('secondary_display_visible', !currentSession.config.secondary_display_visible);
@@ -220,11 +254,6 @@ export const CliPanel: React.FC<CliPanelProps> = ({
             })
         );
     };
-    
-    const isInputDisabled = isProcessing || 
-                          (isExecutingScript && !scriptInputState && !atJobState) || 
-                          !!liveViewCommand;
-
 
     return (
         <div className="panel cli-panel">
@@ -236,9 +265,16 @@ export const CliPanel: React.FC<CliPanelProps> = ({
             <div className="output-area" ref={outputAreaRef}>
                  {renderMainView()}
             </div>
-            {completionCandidates && completionCandidates.length > 0 && (
-                <div className="completion-list">
-                    {completionCandidates.map(c => <span key={c} className="completion-item">{c}</span>)}
+            {visibleCompletions && visibleCompletions.length > 0 && (
+                <div className="completion-list" role="listbox">
+                    {visibleCompletions.map((c, idx) => (
+                        <div
+                          key={c}
+                          className={`completion-item${(completionIndex ?? -1) === idx ? ' selected' : ''}`}
+                          role="option"
+                          aria-selected={(completionIndex ?? -1) === idx}
+                        >{c}</div>
+                    ))}
                 </div>
             )}
             <form className="input-area" onSubmit={handleFormSubmit}>
@@ -248,7 +284,7 @@ export const CliPanel: React.FC<CliPanelProps> = ({
                     type={isAwaitingPassword ? "password" : "text"}
                     value={inputValue}
                     onChange={handleInputChange}
-                    onKeyDown={handleKeyDown}
+                    onKeyDown={onInputKeyDown}
                     disabled={isInputDisabled}
                     autoComplete="off"
                     ref={inputRef}

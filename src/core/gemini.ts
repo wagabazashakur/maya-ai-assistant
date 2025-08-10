@@ -1,4 +1,4 @@
-import { GoogleGenAI, Content, Type, GenerateContentResponse } from "@google/genai";
+import { Content, Type } from "@google/genai";
 import { 
     AiUsageReport,
     ConventionalCommit,
@@ -32,25 +32,28 @@ import {
     AuditReport,
     PortScanReport,
     ExplainResult,
-    OptimizePlan
+    OptimizePlan,
+    SummarizeResult,
+    SuggestionItem
 } from '../types';
+import { getLLM } from './llm';
 
-// Replace eager API key read and throw with a lazy initializer so the app can start without a key
-let _aiInstance: GoogleGenAI | null = null;
-const getAi = (): GoogleGenAI => {
-    const key = (import.meta as any).env?.VITE_GEMINI_API_KEY as string | undefined;
-    if (!key) {
-        throw new Error("VITE_GEMINI_API_KEY not set. Create .env.local with VITE_GEMINI_API_KEY=YOUR_KEY.");
-    }
-    if (!_aiInstance) {
-        _aiInstance = new GoogleGenAI({ apiKey: key });
-    }
-    return _aiInstance;
-};
-// Keep existing call sites `ai.models.generateContent(...)` working via a thin wrapper
+// Thin adapter that mirrors the previous `ai.models.generateContent` shape but routes through LLM
 const ai = {
     models: {
-        generateContent: (...args: any[]) => (getAi().models as any).generateContent(...args),
+        generateContent: async (options: any) => {
+            const { model, contents, config } = options || {};
+            if (config?.responseMimeType === 'application/json') {
+                const text = await getLLM().generateContentJSON({
+                    model,
+                    prompt: contents || [],
+                    schema: config.responseSchema,
+                });
+                return { text } as any;
+            }
+            const text = await getLLM().generateText({ model, prompt: contents || [] });
+            return { text } as any;
+        },
     },
 } as const;
 
@@ -106,10 +109,10 @@ export const processWithGemini = async (session: Session, prompt: Content[]): Pr
             model: 'gemini-2.5-flash',
             contents: [systemInstruction, ...prompt],
         });
-        return response.text;
+        return (response as any).text;
     } catch (error) {
-        console.error("Error processing with Gemini:", error);
-        return `Error: Could not connect to the Gemini API. ${error instanceof Error ? error.message : String(error)}`;
+        console.error("Error processing with LLM:", error);
+        return `Error: Could not connect to the AI provider. ${error instanceof Error ? error.message : String(error)}`;
     }
 };
 
@@ -806,5 +809,54 @@ ${contents}` }] }],
             }
         });
         return safelyParseJson<ExplainResult>(response.text, (e) => console.error("Failed to parse ExplainResult JSON:", response.text, e));
+    } catch (e) { console.error(e); return null; }
+};
+
+export const generateSummary = async (input: string): Promise<SummarizeResult | null> => {
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: [{ role: 'user', parts: [{ text: `Summarize the following input. If it's a file, infer a filename if provided externally; otherwise omit. Provide a concise paragraph summary and 3-7 key bullet points. Respond with a JSON object of type SummarizeResult with fields { file?, inputPreview?, summary, keyPoints }.
+
+INPUT:\n${input.slice(0, 8000)}` }] }],
+            config: {
+                responseMimeType: 'application/json',
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        file: { type: Type.STRING },
+                        inputPreview: { type: Type.STRING },
+                        summary: { type: Type.STRING },
+                        keyPoints: { type: Type.ARRAY, items: { type: Type.STRING } }
+                    }
+                }
+            }
+        });
+        return safelyParseJson<SummarizeResult>(response.text, (e) => console.error('Failed to parse SummarizeResult JSON:', response.text, e));
+    } catch (e) { console.error(e); return null; }
+};
+
+export const suggestFromHistory = async (history: any): Promise<SuggestionItem[] | null> => {
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: [{ role: 'user', parts: [{ text: `Analyze the following Maya histories (audit, explain, optimize, summarize, diagnose) and produce 3-10 concrete actionable suggestions to improve the project. Respond with a JSON array of SuggestionItem where each item is { source, suggestion }.
+
+HISTORY:\n${JSON.stringify(history, null, 2)}` }] }],
+            config: {
+                responseMimeType: 'application/json',
+                responseSchema: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            source: { type: Type.STRING },
+                            suggestion: { type: Type.STRING }
+                        }
+                    }
+                }
+            }
+        });
+        return safelyParseJson<SuggestionItem[]>(response.text, (e) => console.error('Failed to parse SuggestionItem[] JSON:', response.text, e));
     } catch (e) { console.error(e); return null; }
 };

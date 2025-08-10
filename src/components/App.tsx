@@ -56,6 +56,12 @@ export const App: React.FC = () => {
                 onTailExit={mayaState.handleTailExit}
                 // Callbacks
                 onVimAiEdit={mayaState.onVimAiEdit}
+                // Autocomplete
+                provideCompletions={mayaState.provideCompletions}
+                navigateCompletion={mayaState.navigateCompletion}
+                acceptCompletion={mayaState.acceptCompletion}
+                completionCandidates={mayaState.completionCandidates}
+                completionIndex={mayaState.completionIndex}
             />
             {mayaState.currentSession.config.secondary_display_visible && (
                  <LogPanel
@@ -68,11 +74,17 @@ export const App: React.FC = () => {
                     explainHistory={mayaState.explainHistory}
                     optimizeHistory={mayaState.optimizeHistory}
                     oiHistory={mayaState.oiHistory}
+                    summarizeHistory={mayaState.summarizeHistory}
+                    diagnoseHistory={mayaState.diagnoseHistory}
+                    suggestHistory={mayaState.suggestHistory}
                     runAudit={mayaState.runAudit}
                     clearAuditHistory={mayaState.clearAuditHistory}
                     clearExplainHistory={mayaState.clearExplainHistory}
                     clearOptimizeHistory={mayaState.clearOptimizeHistory}
                     clearOIHistory={mayaState.clearOIHistory}
+                    clearSummarizeHistory={mayaState.clearSummarizeHistory}
+                    clearDiagnoseHistory={mayaState.clearDiagnoseHistory}
+                    clearSuggestHistory={mayaState.clearSuggestHistory}
                 />
             )}
         </div>

@@ -65,20 +65,30 @@ Mocking highlights:
   - `src/__tests__/memory.test.ts` verifies capping and persistence for usage and audit histories.
   - `src/__tests__/useMaya.audit.test.tsx` runs the Audit flow end-to-end with mocked Gemini.
   - `src/__tests__/useMaya.audit-clear.test.tsx` confirms Clear Audit History behavior with a confirm dialog.
-  - `src/__tests__/maya-explain.test.tsx` verifies the new `maya explain <path>` flow and Explain History persistence.
+  - `src/__tests__/maya-explain.e2e.test.tsx` exercises `maya explain <path>` and Explain History panel.
+  - `src/__tests__/maya-summarize.e2e.test.tsx` exercises `maya summarize` and Summarize History panel.
+  - `src/__tests__/maya-diagnose-suggest.e2e.test.tsx` exercises `maya diagnose` + `maya suggest` and their panels.
+  - `src/__tests__/maya-oi.e2e.test.tsx` covers Open Interpreter subcommands and history clearing.
 
 ## Feature Roadmap
 
 ### Current Features
 - CLI `maya audit` command with Gemini API integration
 - Audit History panel with localStorage persistence and UI controls
-- New CLI `maya explain <path>` command (mocked) with Explain History panel and persistence
+- `maya explain <path>` command with Explain History panel and persistence
+- `maya optimize '<goal>'` command with Optimize History
+- Open Interpreter Phase 1: `maya run-script` and `maya system-check` with OI Output panel
+- Phase 2 commands and panels:
+  - `maya summarize` (file or stdin) → Summarize History
+  - `maya diagnose` (aggregates audit + explanations) → Diagnose History
+  - `maya suggest` (suggestions from history) → Suggestions panel
+- Clear buttons for each panel with confirmation
 - Comprehensive test coverage with Vitest and mocks
 
 ### Next Steps
-- Expand Maya’s safe subcommands (e.g., optimize)
-- UI trigger buttons for common commands
-- Exportable audit/history logs
+- Polish docs/screenshots for new panels (Summarize/Diagnose/Suggestions)
+- Optional: add more unit tests for history caps and edge cases
+- Optional: extend capture script to auto-generate new panel screenshots
 
 ### Future Vision
 - Plugin architecture for 3rd party integrations
@@ -91,6 +101,8 @@ Mocking highlights:
 - Audit History panel: ![Audit History](images/audit-history.png)
 - Quickstart demo (GIF): ![Quickstart](images/quickstart.gif)
 
+More screenshots coming soon for Summarize, Diagnose, and Suggestions panels.
+
 ## Quick Start Video/GIF
 
 A short screencast (~10–20 seconds) showing:
@@ -100,6 +112,22 @@ A short screencast (~10–20 seconds) showing:
 3. Opening the Secondary Display to view the Audit History panel
 
 You can also use the generated GIF: `images/quickstart.gif`.
+
+## Maya CLI Commands
+
+### maya audit
+- Runs a system audit via Gemini and prints a JSON report. Results are saved to Audit History.
+
+Example output shape:
+
+```
+{
+  "summary": "System looks healthy overall",
+  "findings": [
+    { "category": "security", "issue": "Outdated package", "suggestion": "Update package" }
+  ]
+}
+```
 
 ### maya explain <path>
 
@@ -114,6 +142,69 @@ You can also use the generated GIF: `images/quickstart.gif`.
 ```
 
 - History is saved and visible under the Explain History panel in the Secondary Display.
+
+### maya summarize [<path>] (or via stdin)
+- Summarizes a file or pasted text. If no path is provided, paste text and press Enter.
+- Results are saved to the Summarize History panel.
+
+Example output shape:
+
+```
+{
+  "file": "src/core/gemini.ts",
+  "summary": "Wraps Gemini client and helpers",
+  "keyPoints": [
+    "Uses JSON schemas with responseMimeType",
+    "Lazy client initialization",
+    "Helpers: generateSummary, suggestFromHistory"
+  ]
+}
+```
+
+### maya diagnose
+- Produces a diagnostic bundle by running an audit and gathering recent explanations.
+- Results are saved to the Diagnose History panel.
+
+Example output shape:
+
+```
+{
+  "audit": { "summary": "OK", "findings": [] },
+  "explanations": [
+    { "file": "src/index.tsx", "summary": "Mounts React app", "details": ["Creates root", "Renders <App />"] }
+  ],
+  "notes": ["No critical issues detected"]
+}
+```
+
+### maya suggest
+- Generates suggestions derived from audit/explain/optimize/summarize/diagnose histories.
+- Results appear in the Suggestions panel.
+
+Example output shape:
+
+```
+[
+  { "source": "audit", "suggestion": "Upgrade vulnerable dependency" },
+  { "source": "summarize", "suggestion": "Document gemini.ts helper contracts in README" }
+]
+```
+
+## UX Improvements
+
+- CLI Autocomplete
+  - Suggestions from built-ins, aliases, and recent command history.
+  - Keyboard navigation: ArrowUp/ArrowDown to navigate, Enter to accept.
+  - Appears above the input as you type.
+
+- Panel Search/Filter
+  - Each history panel includes a filter input to search by summary, file, contents, or timestamp.
+  - Filters persist between reloads.
+
+- Export/Import Histories
+  - Export all histories to a single JSON via the "Export Histories" button.
+  - Import from a JSON file via the "Import Histories" button (merge or replace).
+  - Useful for sharing or backing up sessions.
 
 ## FAQ / Troubleshooting
 
@@ -163,3 +254,27 @@ Notes
   echo, uname, date, whoami, id, df, uptime, cat, head, tail
 
 - You can clear the saved entries via the "Clear OI History" button in the panel.
+
+## Multi-LLM Support (Phase 4)
+
+Maya now supports pluggable LLM providers via a new core abstraction:
+
+- Core: `src/core/llm.ts` exposes `getLLM()` with a provider implementing:
+  - `generateContentJSON({ prompt, schema, model? })`
+  - `generateText({ prompt, model? })`
+- Providers:
+  - Gemini (default): uses `@google/genai` and your `VITE_GEMINI_API_KEY`.
+  - OpenAI (stub): returns placeholder responses for now; swap in real SDK later.
+
+Configuration (persisted):
+- In-app config now includes:
+  - `llm_provider`: `'gemini' | 'openai'` (default `'gemini'`).
+  - `llm_model`: string (defaults to `'gemini-2.5-flash'` or `'gpt-4o-mini'` per provider).
+
+Switching providers:
+- Update the config (via future UI/CLI toggle) to set `llm_provider` and optional `llm_model`.
+- All existing helpers in `src/core/gemini.ts` automatically route through the active provider while keeping JSON schema contracts and safety patterns intact.
+
+Testing:
+- Unit test `src/__tests__/llm-routing.test.ts` validates provider selection and stub behavior.
+- Existing tests mocking `../core/gemini` continue to work unchanged.

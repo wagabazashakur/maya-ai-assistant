@@ -20,6 +20,15 @@ const OPTIMIZE_HISTORY_KEY = 'maya_optimize_history';
 const OPTIMIZE_HISTORY_LIMIT = 50;
 const OI_HISTORY_KEY = 'maya_oi_history';
 const OI_HISTORY_LIMIT = 50;
+// --- Phase 2 keys ---
+const SUMMARIZE_HISTORY_KEY = 'maya_summarize_history';
+const SUMMARIZE_HISTORY_LIMIT = 50;
+const DIAGNOSE_HISTORY_KEY = 'maya_diagnose_history';
+const DIAGNOSE_HISTORY_LIMIT = 50;
+const SUGGEST_HISTORY_KEY = 'maya_suggest_history';
+const SUGGEST_HISTORY_LIMIT = 100;
+// --- Phase 3: panel filters ---
+const PANEL_FILTERS_KEY = 'maya_panel_filters';
 
 export const getUsageLog = (): string[] => {
     try {
@@ -275,5 +284,141 @@ export const setOIHistory = (history: any[]) => {
         localStorage.setItem(OI_HISTORY_KEY, JSON.stringify(capped));
     } catch (error) {
         console.error("Failed to save OI History to localStorage:", error);
+    }
+};
+
+// --- Phase 2: summarize history ---
+export const getSummarizeHistory = (): any[] => {
+    try {
+        const stored = localStorage.getItem(SUMMARIZE_HISTORY_KEY);
+        return stored ? JSON.parse(stored) : [];
+    } catch (error) {
+        console.error('Failed to parse Summarize History from localStorage:', error);
+        return [];
+    }
+};
+
+export const setSummarizeHistory = (history: any[]) => {
+    try {
+        const capped = history.slice(-SUMMARIZE_HISTORY_LIMIT);
+        localStorage.setItem(SUMMARIZE_HISTORY_KEY, JSON.stringify(capped));
+    } catch (error) {
+        console.error('Failed to save Summarize History to localStorage:', error);
+    }
+};
+
+// --- Phase 2: diagnose history ---
+export const getDiagnoseHistory = (): any[] => {
+    try {
+        const stored = localStorage.getItem(DIAGNOSE_HISTORY_KEY);
+        return stored ? JSON.parse(stored) : [];
+    } catch (error) {
+        console.error('Failed to parse Diagnose History from localStorage:', error);
+        return [];
+    }
+};
+
+export const setDiagnoseHistory = (history: any[]) => {
+    try {
+        const capped = history.slice(-DIAGNOSE_HISTORY_LIMIT);
+        localStorage.setItem(DIAGNOSE_HISTORY_KEY, JSON.stringify(capped));
+    } catch (error) {
+        console.error('Failed to save Diagnose History to localStorage:', error);
+    }
+};
+
+// --- Phase 2: suggest history ---
+export const getSuggestHistory = (): any[] => {
+    try {
+        const stored = localStorage.getItem(SUGGEST_HISTORY_KEY);
+        return stored ? JSON.parse(stored) : [];
+    } catch (error) {
+        console.error('Failed to parse Suggest History from localStorage:', error);
+        return [];
+    }
+};
+
+export const setSuggestHistory = (history: any[]) => {
+    try {
+        const capped = history.slice(-SUGGEST_HISTORY_LIMIT);
+        localStorage.setItem(SUGGEST_HISTORY_KEY, JSON.stringify(capped));
+    } catch (error) {
+        console.error('Failed to save Suggest History to localStorage:', error);
+    }
+};
+
+// --- Phase 3: panel filters persistence ---
+export type PanelFilters = {
+    audit?: string;
+    explain?: string;
+    optimize?: string;
+    summarize?: string;
+    diagnose?: string;
+    suggest?: string;
+    oi?: string;
+};
+
+export const getPanelFilters = (): PanelFilters => {
+    try {
+        const stored = localStorage.getItem(PANEL_FILTERS_KEY);
+        return stored ? JSON.parse(stored) : {};
+    } catch (error) {
+        console.error('Failed to parse Panel Filters from localStorage:', error);
+        return {};
+    }
+};
+
+export const setPanelFilters = (filters: PanelFilters) => {
+    try {
+        localStorage.setItem(PANEL_FILTERS_KEY, JSON.stringify(filters));
+    } catch (error) {
+        console.error('Failed to save Panel Filters to localStorage:', error);
+    }
+};
+
+// --- Phase 3: export/import all histories ---
+export type MayaExportPayload = {
+    version: number;
+    exportedAt: string;
+    audit: any[];
+    explain: any[];
+    optimize: any[];
+    summarize: any[];
+    diagnose: any[];
+    suggest: any[];
+    oi: any[];
+};
+
+export const exportAllHistories = (): MayaExportPayload => {
+    return {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        audit: getAuditHistory(),
+        explain: getExplainHistory(),
+        optimize: getOptimizeHistory(),
+        summarize: getSummarizeHistory(),
+        diagnose: getDiagnoseHistory(),
+        suggest: getSuggestHistory(),
+        oi: getOIHistory(),
+    };
+};
+
+export const importAllHistories = (payload: Partial<MayaExportPayload>, mode: 'replace' | 'merge' = 'merge') => {
+    const safeArray = (v: any) => Array.isArray(v) ? v : [];
+    const apply = (setter: (arr: any[]) => void, current: any[], incoming: any[]) => {
+        const next = mode === 'replace' ? incoming : [...current, ...incoming];
+        setter(next);
+    };
+    try {
+        apply(setAuditHistory, getAuditHistory(), safeArray(payload.audit));
+        apply(setExplainHistory, getExplainHistory(), safeArray(payload.explain));
+        apply(setOptimizeHistory, getOptimizeHistory(), safeArray(payload.optimize));
+        apply(setSummarizeHistory, getSummarizeHistory(), safeArray(payload.summarize));
+        apply(setDiagnoseHistory, getDiagnoseHistory(), safeArray(payload.diagnose));
+        apply(setSuggestHistory, getSuggestHistory(), safeArray(payload.suggest));
+        apply(setOIHistory, getOIHistory(), safeArray(payload.oi));
+    } catch (e) {
+        console.error('Failed to import histories:', e);
+        throw e;
     }
 };

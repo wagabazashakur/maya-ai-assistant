@@ -64,6 +64,9 @@ export type UserConfiguration = {
     theme: 'dark' | 'light';
     secondary_display_visible: boolean;
     gemini_enabled: boolean;
+    // --- Phase 4: Multi-LLM ---
+    llm_provider?: 'gemini' | 'openai';
+    llm_model?: string; // e.g., 'gemini-2.5-flash' | 'gpt-4o-mini'
 };
 
 export type GitCommit = {
@@ -90,6 +93,10 @@ export type LogPanelVisibility = {
     explainHistoryVisible: boolean;
     optimizeHistoryVisible: boolean;
     oiHistoryVisible: boolean;
+    // --- Phase 2 panels ---
+    summarizeHistoryVisible?: boolean;
+    diagnoseHistoryVisible?: boolean;
+    suggestHistoryVisible?: boolean;
 };
 
 export type OnboardingStatus = 'welcome' | 'theme' | 'finished';
@@ -171,6 +178,26 @@ export interface ExplainResult {
     summary: string;
     details: string[];
 }
+
+// --- Phase 2: summarize/diagnose/suggest types ---
+export type SummarizeResult = {
+    file?: string;
+    inputPreview?: string;
+    summary: string;
+    keyPoints: string[];
+};
+
+export type DiagnoseReport = {
+    audit: AuditReport;
+    explanations: ExplainResult[];
+    optimization?: OptimizePlan;
+    notes?: string[];
+};
+
+export type SuggestionItem = {
+    source: 'audit' | 'explain' | 'optimize' | 'summarize' | 'diagnose';
+    suggestion: string;
+};
 
 export type SyntaxToken = {
     type: string;

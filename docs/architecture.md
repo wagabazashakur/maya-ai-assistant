@@ -51,3 +51,4 @@ Notes:
 - `memory.ts` persists UI config, history, and audit logs with capped lists.
 - `safety.ts` classifies commands (safe/risky/destructive) and whitelists internal `maya` subcommands.
 - Components remain “dumb”; they render based on state and handlers from `useMaya`.
+- Phase 2 adds panels for Summarize, Diagnose, and Suggestions. See `docs/panels.md` for panel locations and clear actions.

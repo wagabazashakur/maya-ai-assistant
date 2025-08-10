@@ -33,7 +33,8 @@ import {
     analyzeIntent, generateMayaManPage, suggestOrganization, debugScript,
     getDiagnosticCommands, diagnoseProblem, confirmProjectCompletion, summarizeHistory,
     performSystemAudit, scanPorts, getSystemInstruction,
-    generateFileExplanation, generateOptimizePlan
+    generateFileExplanation, generateOptimizePlan,
+    generateSummary, suggestFromHistory
 } from '../core/gemini';
 import { classifyCommand } from '../core/safety';
 import {
@@ -41,7 +42,8 @@ import {
     getGitLog, setGitLog as saveGitLog, getPanelVisibility, setPanelVisibility as savePanelVisibility,
     getOnboardingComplete, setOnboardingComplete as setOnboardingCompleteFlag,
     getAliases, setAliases as saveAliases, getUsageLog, setUsageLog, getEnvVars, setEnvVars,
-    getAuditHistory, setAuditHistory, getExplainHistory, setExplainHistory, getOptimizeHistory, setOptimizeHistory, getOIHistory, setOIHistory
+    getAuditHistory, setAuditHistory, getExplainHistory, setExplainHistory, getOptimizeHistory, setOptimizeHistory, getOIHistory, setOIHistory,
+    getSummarizeHistory, setSummarizeHistory, getDiagnoseHistory, setDiagnoseHistory, getSuggestHistory, setSuggestHistory
 } from '../core/memory';
 import { applyPatch, createPatch } from 'diff';
 import { sha1, md5 } from '../utils/hashes';
@@ -72,6 +74,8 @@ export const useMaya = () => {
             theme: 'dark',
             secondary_display_visible: true,
             gemini_enabled: true,
+            llm_provider: 'gemini',
+            llm_model: 'gemini-2.5-flash',
             ...persistedConfig,
         };
     });
@@ -99,6 +103,9 @@ export const useMaya = () => {
     const [explainHistory, setExplainHistoryState] = useState(() => getExplainHistory());
     const [optimizeHistory, setOptimizeHistoryState] = useState(() => getOptimizeHistory());
     const [oiHistory, setOiHistoryState] = useState(() => getOIHistory());
+    const [summarizeHistory, setSummarizeHistoryState] = useState(() => getSummarizeHistory());
+    const [diagnoseHistory, setDiagnoseHistoryState] = useState(() => getDiagnoseHistory());
+    const [suggestHistory, setSuggestHistoryState] = useState(() => getSuggestHistory());
     const [vimAiEditCount, setVimAiEditCount] = useState(0);
     const [usageLog, setUsageLogInternal] = useState<string[]>(() => getUsageLog());
     const [gitServer, setGitServer] = useState<GitServer>({});
@@ -321,6 +328,70 @@ export const useMaya = () => {
                 setIsProcessing(false);
             }
         }
+        if (subCmd === 'summarize') {
+            setIsProcessing(true);
+            try {
+                const target = args[1];
+                let input = '';
+                if (target && target !== '-') {
+                    try { input = fs.readFileSync(target, 'utf-8'); } catch { input = `// Simulated contents for ${target}`; }
+                } else {
+                    // read from stdin simulated as empty for now
+                    input = '';
+                }
+                const res = await generateSummary(input);
+                if (res) {
+                    const entry = { timestamp: new Date().toISOString(), result: res };
+                    const next = [...summarizeHistory, entry];
+                    setSummarizeHistoryState(next);
+                    setSummarizeHistory(next);
+                }
+                return { stdout: JSON.stringify(res, null, 2), stderr: '', success: true };
+            } catch (e:any) {
+                console.error(e);
+                return { stdout: '', stderr: e?.message || 'Summarize failed.', success: false };
+            } finally { setIsProcessing(false); }
+        }
+        if (subCmd === 'diagnose') {
+            setIsProcessing(true);
+            try {
+                const audit = await performSystemAudit({ session: currentSession?.hostname || 'local' });
+                const explanations = explainHistory.map((e:any) => e.result);
+                const optimization = undefined;
+                const report = { audit: audit || { summary: 'No audit', findings: [] }, explanations, optimization };
+                const entry = { timestamp: new Date().toISOString(), report };
+                const next = [...diagnoseHistory, entry];
+                setDiagnoseHistoryState(next);
+                setDiagnoseHistory(next);
+                return { stdout: JSON.stringify(report, null, 2), stderr: '', success: true };
+            } catch (e:any) {
+                console.error(e);
+                return { stdout: '', stderr: e?.message || 'Diagnose failed.', success: false };
+            } finally { setIsProcessing(false); }
+        }
+        if (subCmd === 'suggest') {
+            setIsProcessing(true);
+            try {
+                const historyPayload = {
+                    audit: auditHistory,
+                    explain: explainHistory,
+                    optimize: optimizeHistory,
+                    summarize: summarizeHistory,
+                    diagnose: diagnoseHistory
+                };
+                const suggestions = await suggestFromHistory(historyPayload);
+                if (suggestions) {
+                    const entry = { timestamp: new Date().toISOString(), suggestions };
+                    const next = [...suggestHistory, entry];
+                    setSuggestHistoryState(next);
+                    setSuggestHistory(next);
+                }
+                return { stdout: JSON.stringify(suggestions, null, 2), stderr: '', success: true };
+            } catch (e:any) {
+                console.error(e);
+                return { stdout: '', stderr: e?.message || 'Suggest failed.', success: false };
+            } finally { setIsProcessing(false); }
+        }
         return { stdout: '', stderr: `Unknown maya command: ${subCmd}`, success: false };
     };
 
@@ -360,6 +431,57 @@ export const useMaya = () => {
         setOiHistoryState([]);
         setOIHistory([]);
     }, []);
+    const clearSummarizeHistory = useCallback(() => {
+        setSummarizeHistoryState([]);
+        setSummarizeHistory([]);
+    }, []);
+    const clearDiagnoseHistory = useCallback(() => {
+        setDiagnoseHistoryState([]);
+        setDiagnoseHistory([]);
+    }, []);
+    const clearSuggestHistory = useCallback(() => {
+        setSuggestHistoryState([]);
+        setSuggestHistory([]);
+    }, []);
+
+    // Completions
+    const [completionCandidates, setCompletionCandidates] = useState<string[]>([]);
+    const [completionIndex, setCompletionIndex] = useState<number>(-1);
+
+    // Simple built-ins list
+    const builtinCommands = useMemo(() => [
+        'ls','cd','cat','head','tail','grep','vim','less','git',
+        'maya audit','maya explain','maya optimize','maya run-script','maya system-check',
+        'maya summarize','maya diagnose','maya suggest'
+    ], []);
+
+    const provideCompletions = useCallback((input: string) => {
+        const aliasKeys = Object.keys(getAliases() || {});
+        const historyItems = (getUsageLog() || []).slice(-50);
+        const pool = Array.from(new Set([...builtinCommands, ...aliasKeys, ...historyItems]));
+        const q = input.trim();
+        if (!q) { setCompletionCandidates([]); setCompletionIndex(-1); return []; }
+        const matches = pool.filter(s => s.toLowerCase().startsWith(q.toLowerCase()));
+        setCompletionCandidates(matches.slice(0, 10));
+        setCompletionIndex(matches.length > 0 ? 0 : -1);
+        return matches;
+    }, [builtinCommands]);
+
+    const navigateCompletion = useCallback((dir: 'up'|'down') => {
+        setCompletionIndex(prev => {
+            if (completionCandidates.length === 0) return -1;
+            const next = dir === 'down' ? (prev + 1) % completionCandidates.length : (prev - 1 + completionCandidates.length) % completionCandidates.length;
+            return next;
+        });
+    }, [completionCandidates.length]);
+
+    const acceptCompletion = useCallback(() => {
+        const sel = completionIndex >= 0 ? completionCandidates[completionIndex] : '';
+        if (sel) setCommand(sel);
+        setCompletionCandidates([]);
+        setCompletionIndex(-1);
+        return sel;
+    }, [completionIndex, completionCandidates]);
 
     // The actual returned object will be complete.
     return {
@@ -380,6 +502,9 @@ export const useMaya = () => {
         explainHistory,
         optimizeHistory,
         oiHistory,
+        summarizeHistory,
+        diagnoseHistory,
+        suggestHistory,
         // handlers/refs expected by UI
         handleFormSubmit,
         handleKeyDown,
@@ -392,6 +517,12 @@ export const useMaya = () => {
         onRebaseExit,
         onGdbExit,
         handleTailExit,
+        // completions
+        provideCompletions,
+        navigateCompletion,
+        acceptCompletion,
+        completionCandidates,
+        completionIndex,
         // allow UI-triggered commands
         submitCommand,
         runAudit,
@@ -399,5 +530,8 @@ export const useMaya = () => {
         clearExplainHistory,
         clearOptimizeHistory,
         clearOIHistory,
+        clearSummarizeHistory,
+        clearDiagnoseHistory,
+        clearSuggestHistory,
     };
 };
