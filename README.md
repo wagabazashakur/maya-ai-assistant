@@ -135,3 +135,31 @@ VITE_GEMINI_API_KEY=your_api_key_here
 ## AI Contributor Guidance
 
 See `.github/copilot-instructions.md` for architecture, conventions, command routing, and how to add new `maya` subcommands (with a working `maya audit` example). The file is the source of truth for AI coding agents and should be kept up to date.
+
+## Open Interpreter Commands
+
+Phase 1 introduces safe-by-default Open Interpreter helpers. Execution is simulated in-browser (dry-run) unless an optional local agent is enabled.
+
+- Example: run a small Python snippet
+  
+  maya run-script "print(1+1)"
+
+  Output is simulated and also saved under the "Open Interpreter Output" panel.
+
+- Example: system diagnostics bundle (safe allowlisted commands)
+  
+  maya system-check
+
+  Runs a few diagnostic commands (uname, date, whoami, id, df, uptime) in dry-run and logs results to the OI panel.
+
+Notes
+- Default is dry-run. To opt-in to a local agent in advanced setups, set a global flag in the browser console before issuing commands:
+  
+  window.__MAYA_OI_LOCAL__ = true
+
+  In tests/Node you can set globalThis.__MAYA_OI_LOCAL__ = true.
+- Current safe shell allowlist used for Phase 1 (subject to change):
+  
+  echo, uname, date, whoami, id, df, uptime, cat, head, tail
+
+- You can clear the saved entries via the "Clear OI History" button in the panel.

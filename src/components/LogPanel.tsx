@@ -9,12 +9,16 @@ interface LogPanelProps {
     updatePanelVisibility: (panel: keyof LogPanelVisibility) => void;
     auditHistory?: { timestamp: string; report: { summary: string; findings: any[] } }[];
     explainHistory?: Array<{ timestamp: string; result: { file: string; summary: string; details: string[] } }>;
+    optimizeHistory?: Array<{ timestamp: string; goal: string; plan: { goal: string; steps: string[]; notes?: string } }>;
+    oiHistory?: Array<{ timestamp: string; command: string; result: { kind: 'python'|'shell'; input: string; output: string; error?: string; success: boolean; dryRun: boolean } }>;
     runAudit?: () => Promise<any> | void;
     clearAuditHistory?: () => void;
     clearExplainHistory?: () => void;
+    clearOptimizeHistory?: () => void;
+    clearOIHistory?: () => void;
 }
 
-export const LogPanel: React.FC<LogPanelProps> = ({ logs, gitLog, currentSession, panelVisibility, updatePanelVisibility, auditHistory = [], explainHistory: explainHistoryProp, runAudit, clearAuditHistory, clearExplainHistory }) => {
+export const LogPanel: React.FC<LogPanelProps> = ({ logs, gitLog, currentSession, panelVisibility, updatePanelVisibility, auditHistory = [], explainHistory: explainHistoryProp, optimizeHistory = [], oiHistory = [], runAudit, clearAuditHistory, clearExplainHistory, clearOptimizeHistory, clearOIHistory }) => {
     const { ltm, corrections, config, aliases, envVars, lastExitCode } = currentSession;
     
     const specialVars = ['PS1', 'PS3', 'PS4', 'OPTIND', 'OPTARG', 'OLDPWD'];
@@ -30,6 +34,20 @@ export const LogPanel: React.FC<LogPanelProps> = ({ logs, gitLog, currentSession
         if (!clearExplainHistory) return;
         if (confirm('Clear all explain history? This cannot be undone.')) {
             clearExplainHistory();
+        }
+    };
+
+    const onClearOptimize = () => {
+        if (!clearOptimizeHistory) return;
+        if (confirm('Clear all optimize history? This cannot be undone.')) {
+            clearOptimizeHistory();
+        }
+    };
+
+    const onClearOI = () => {
+        if (!clearOIHistory) return;
+        if (confirm('Clear all OI history? This cannot be undone.')) {
+            clearOIHistory();
         }
     };
 
@@ -156,6 +174,62 @@ export const LogPanel: React.FC<LogPanelProps> = ({ logs, gitLog, currentSession
                                         <li key={i}>{d}</li>
                                     ))}
                                 </ul>
+                            </div>
+                        ))
+                    ) : <pre>{'{ }'}</pre>}
+                </div>
+            </details>
+            <details className="memory-display" open={panelVisibility.optimizeHistoryVisible} onToggle={() => updatePanelVisibility('optimizeHistoryVisible')}>
+                <summary>Optimize History</summary>
+                <div className="panel-actions" style={{ marginBottom: 8 }}>
+                    {clearOptimizeHistory && (
+                        <button onClick={onClearOptimize} className="btn btn-danger" aria-label="Clear Optimize History">Clear Optimize History</button>
+                    )}
+                </div>
+                <div className="log-content">
+                    {optimizeHistory.length > 0 ? (
+                        optimizeHistory.slice().reverse().map((entry, idx) => (
+                            <div key={`${entry.timestamp}-${idx}`} className="optimize-entry">
+                                <div className="optimize-meta">
+                                    <strong>{new Date(entry.timestamp).toLocaleString()}</strong>
+                                    <span> — Goal: {entry.goal}</span>
+                                </div>
+                                <div className="optimize-summary">
+                                    <em>{entry.plan.notes || 'Optimization Plan'}</em>
+                                </div>
+                                <ol>
+                                    {entry.plan.steps.map((s, i) => (
+                                        <li key={i}>{s}</li>
+                                    ))}
+                                </ol>
+                            </div>
+                        ))
+                    ) : <pre>{'{ }'}</pre>}
+                </div>
+            </details>
+            <details className="memory-display" open={panelVisibility.oiHistoryVisible} onToggle={() => updatePanelVisibility('oiHistoryVisible')}>
+                <summary>Open Interpreter Output</summary>
+                <div className="panel-actions" style={{ marginBottom: 8 }}>
+                    {clearOIHistory && (
+                        <button onClick={onClearOI} className="btn btn-danger" aria-label="Clear OI History">Clear OI History</button>
+                    )}
+                </div>
+                <div className="log-content">
+                    {oiHistory.length > 0 ? (
+                        oiHistory.slice().reverse().map((entry, idx) => (
+                            <div key={`${entry.timestamp}-${idx}`} className="oi-entry">
+                                <div className="oi-meta">
+                                    <strong>{new Date(entry.timestamp).toLocaleString()}</strong>
+                                    <span> — {entry.result.kind.toUpperCase()}</span>
+                                </div>
+                                <div className="oi-command"><code>{entry.command}</code></div>
+                                {entry.result.error && (
+                                    <div className="oi-error"><strong>Error:</strong> {entry.result.error}</div>
+                                )}
+                                <details>
+                                    <summary>Output</summary>
+                                    <pre>{entry.result.output}</pre>
+                                </details>
                             </div>
                         ))
                     ) : <pre>{'{ }'}</pre>}

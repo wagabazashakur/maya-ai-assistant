@@ -26,17 +26,14 @@ import {
 import {
     processWithGemini, generatePlan, refactorCode, generateExplanation,
     performAiEdit, performAiEditOnSelection, generateCode, generateSyntaxHighlighting,
-    generateCommandFix, analyzeSystemForOptimization, generateCommitMessage,
-    translateText, searchWithGoogle, simulateWget, generateManPage,
-    generateRecoveryPlan, simulateCurl, analyzeSystemHealth, analyzeAiUsage,
-    compileCCode, suggestEvolution, analyzePermissions, scaffoldProject,
-    critiqueScript, repairScript, summarizeGitHistory, findCommitByDescription,
+    generateCommitMessage,
+    suggestEvolution, analyzePermissions,
+    critiqueScript, summarizeGitHistory,
     explainConcept, summarizeSessionActivity, generateSystemReport, documentScript,
     analyzeIntent, generateMayaManPage, suggestOrganization, debugScript,
-    getDynamicDependencies, getCommandSummary, generateDockerfile,
     getDiagnosticCommands, diagnoseProblem, confirmProjectCompletion, summarizeHistory,
-    searchManPages, performSystemAudit, scanPorts, getSystemInstruction,
-    generateFileExplanation
+    performSystemAudit, scanPorts, getSystemInstruction,
+    generateFileExplanation, generateOptimizePlan
 } from '../core/gemini';
 import { classifyCommand } from '../core/safety';
 import {
@@ -44,12 +41,13 @@ import {
     getGitLog, setGitLog as saveGitLog, getPanelVisibility, setPanelVisibility as savePanelVisibility,
     getOnboardingComplete, setOnboardingComplete as setOnboardingCompleteFlag,
     getAliases, setAliases as saveAliases, getUsageLog, setUsageLog, getEnvVars, setEnvVars,
-    getAuditHistory, setAuditHistory, getExplainHistory, setExplainHistory
+    getAuditHistory, setAuditHistory, getExplainHistory, setExplainHistory, getOptimizeHistory, setOptimizeHistory, getOIHistory, setOIHistory
 } from '../core/memory';
 import { applyPatch, createPatch } from 'diff';
 import { sha1, md5 } from '../utils/hashes';
 import { Content } from '@google/genai';
 import fs from 'fs';
+import { runPython, runShell } from '../core/open-interpreter';
 
 // --- Constants ---
 const VERSION = "1.0.0 (Feature Complete)";
@@ -92,11 +90,15 @@ export const useMaya = () => {
             aliasesVisible: true,
             auditHistoryVisible: true,
             explainHistoryVisible: false,
+            optimizeHistoryVisible: false,
+            oiHistoryVisible: false,
             ...persisted,
         };
     });
     const [auditHistory, setAuditHistoryState] = useState(() => getAuditHistory());
     const [explainHistory, setExplainHistoryState] = useState(() => getExplainHistory());
+    const [optimizeHistory, setOptimizeHistoryState] = useState(() => getOptimizeHistory());
+    const [oiHistory, setOiHistoryState] = useState(() => getOIHistory());
     const [vimAiEditCount, setVimAiEditCount] = useState(0);
     const [usageLog, setUsageLogInternal] = useState<string[]>(() => getUsageLog());
     const [gitServer, setGitServer] = useState<GitServer>({});
@@ -253,6 +255,72 @@ export const useMaya = () => {
             setIsProcessing(false);
             return { stdout: confirmation || "Project completion confirmed.", stderr: '', success: true };
         }
+        if (subCmd === 'run-script') {
+            setIsProcessing(true);
+            try {
+                const input = args.slice(1).join(' ').trim();
+                if (!input) {
+                    return { stdout: '', stderr: 'Usage: maya run-script "<python code>"', success: false };
+                }
+                // For Phase 1, always dry-run (no local agent execution).
+                const result = await runPython(input, { dryRun: true });
+                const entry = { timestamp: new Date().toISOString(), command, result };
+                const next = [...oiHistory, entry];
+                setOiHistoryState(next);
+                setOIHistory(next);
+                return { stdout: JSON.stringify(result, null, 2), stderr: '', success: result.success };
+            } catch (e:any) {
+                console.error(e);
+                return { stdout: '', stderr: e?.message || 'run-script failed.', success: false };
+            } finally {
+                setIsProcessing(false);
+            }
+        }
+        if (subCmd === 'system-check') {
+            setIsProcessing(true);
+            try {
+                // Safe diagnostic bundle using allowlisted commands
+                const cmds = ['uname -a', 'date', 'whoami', 'id', 'df -h | head -n 5', 'uptime'];
+                const outputs = [] as any[];
+                for (const c of cmds) {
+                    const res = await runShell(c, { dryRun: true });
+                    outputs.push({ command: c, ...res });
+                    const entry = { timestamp: new Date().toISOString(), command: c, result: res };
+                    const next = [...oiHistory, entry];
+                    setOiHistoryState(next);
+                    setOIHistory(next);
+                }
+                return { stdout: JSON.stringify(outputs, null, 2), stderr: '', success: true };
+            } catch (e:any) {
+                console.error(e);
+                return { stdout: '', stderr: e?.message || 'system-check failed.', success: false };
+            } finally {
+                setIsProcessing(false);
+            }
+        }
+        if (subCmd === 'optimize') {
+            setIsProcessing(true);
+            try {
+                const goal = args.slice(1).join(' ').trim();
+                if (!goal) {
+                    return { stdout: '', stderr: 'Usage: maya optimize "<goal>"', success: false };
+                }
+                const plan = await generateOptimizePlan(goal);
+                if (plan) {
+                    const entry = { timestamp: new Date().toISOString(), goal, plan };
+                    const next = [...optimizeHistory, entry];
+                    setOptimizeHistoryState(next);
+                    setOptimizeHistory(next);
+                }
+                const output = plan ? JSON.stringify(plan, null, 2) : 'No optimize plan available.';
+                return { stdout: output, stderr: '', success: true };
+            } catch (e:any) {
+                console.error(e);
+                return { stdout: '', stderr: e?.message || 'Optimize failed.', success: false };
+            } finally {
+                setIsProcessing(false);
+            }
+        }
         return { stdout: '', stderr: `Unknown maya command: ${subCmd}`, success: false };
     };
 
@@ -283,6 +351,16 @@ export const useMaya = () => {
         setExplainHistory([]);
     }, []);
 
+    const clearOptimizeHistory = useCallback(() => {
+        setOptimizeHistoryState([]);
+        setOptimizeHistory([]);
+    }, []);
+
+    const clearOIHistory = useCallback(() => {
+        setOiHistoryState([]);
+        setOIHistory([]);
+    }, []);
+
     // The actual returned object will be complete.
     return {
         isProcessing,
@@ -300,6 +378,8 @@ export const useMaya = () => {
         // expose audit & explain history to UI
         auditHistory,
         explainHistory,
+        optimizeHistory,
+        oiHistory,
         // handlers/refs expected by UI
         handleFormSubmit,
         handleKeyDown,
@@ -317,5 +397,7 @@ export const useMaya = () => {
         runAudit,
         clearAuditHistory,
         clearExplainHistory,
+        clearOptimizeHistory,
+        clearOIHistory,
     };
 };

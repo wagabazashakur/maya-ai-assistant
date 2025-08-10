@@ -31,7 +31,8 @@ import {
     AproposReport,
     AuditReport,
     PortScanReport,
-    ExplainResult
+    ExplainResult,
+    OptimizePlan
 } from '../types';
 
 // Replace eager API key read and throw with a lazy initializer so the app can start without a key
@@ -68,7 +69,7 @@ basename, dirname, md5sum, sha1sum, whatis, fc, ldd, paste, getopts, let, free.
 You have a powerful 'vim' editor with live AI syntax highlighting, split windows (sp, vsp, ctrl-w), and tab completion (for commands and files). It supports multiple modes (NORMAL, INSERT, VISUAL), navigation (h,j,k,l,w,b,e,{},$,0,^,gg,G,:<number>), visual mode ('v'), search ('/'), search-and-replace (':s'), operator-pending mode for delete/yank/change/AI (e.g., dw, c$, yw, aiw), command counts (e.g., 3dd, 5j), undo/redo (u/Ctrl+R), macros (q, @), dot command '.', and configurable line numbers via ':set nu'/'rnu'. It also supports AI-powered edits with ':ai <prompt>' (on the whole file or a visual selection) and the 'ai' operator.
 You have a simulated 'git' version control system with init, add, commit (-a, --amend), status, log, diff, branch (-d, -D), checkout, blame, merge, reset (--soft, --mixed, --hard), revert, stash (push, list, pop, apply, drop), tag, remote, push (--force), pull (--rebase), clean (-f, -n, -d), rebase (-i, --onto, --continue, --abort), reflog, show, rm, mv, cherry-pick (--continue, --abort), config, and bisect (start, good, bad, reset, run). It supports merge conflicts, interactive rebase with fixup, .gitignore, passwordless ssh via authorized_keys, a file-based history, and remote repos.
 You can execute scripts with './script.sh' if they have execute permissions. Your shell supports piping with '|', I/O redirection with '>', '>>', '<', '2>', '&>', '2>&1', '<<<', command substitution with \`\` and $(), logical operators with '&&' and '||', history expansion with '!!', '!$', '!*', '!<string>', wildcard globbing with '*', '?', and '[]' (but not for dotfiles unless pattern starts with '.'), brace expansion with '{a,b}' and '{1..3}', process substitution with '<()', and here-docs with '<<'. Subshells are created for scripts, command substitutions, and with '(...)'.
-Scripts can define and use local variables and arrays. They support for, C-style for, while, until, if, [[...]] (with =~, &&, ||, !), case, select control structures, positional parameters ($0, $1, $2, $#, $@, $*), shell functions (with local vars, return, export -f), and can read user input with 'read'. Login shells source ~/.profile which sources ~/.mayarc. The last command's exit code is in $?. Scripts can use 'trap' for INT, TERM, EXIT signals, and 'break'/'continue'. The 'let' and 'expr' commands and '$((...))' are available for arithmetic. The 'set' command with -e, -u, -x is supported. 'getopts' is available for script argument parsing. The 'test' and '[' commands support the '!' (NOT) operator and compound expressions with '-a' (AND) and '-o' (OR).
+Scripts can define and use local variables and arrays. They support for, C-style for, while, until, if, [[...]] (with =~, &&, ||, !), case, select control structures, positional parameters ($0, $1, $2, $#, $@, $*), shell functions (with local vars, return, export -f), and can read user input with 'read'. Login shells source ~/.profile which sources ~/.mayarc. The last command's exit code is in $?. Scripts can use 'trap' for INT, TERM, EXIT signals, and 'break'/'continue'. The 'let' and 'expr' commands and '$(())' are available for arithmetic. The 'set' command with -e, -u, -x is supported. 'getopts' is available for script argument parsing. The 'test' and '[' commands support the '!' (NOT) operator and compound expressions with '-a' (AND) and '-o' (OR).
 You have job control: run commands in the background with '&', stop foreground jobs with Ctrl+Z, terminate them with Ctrl+C, and manage them with 'jobs', 'fg', 'bg'. 'nohup' is available for persistent jobs. Advanced command line editing shortcuts (Ctrl+A, Ctrl+E, Alt+B/F for movement, Ctrl+K/U/W, Alt+D for killing text, and Ctrl+Y for yanking) are available.
 You support 'sudo' for temporary privilege escalation for a single command, which requires a password with a 5-minute timeout.
 You have a simulated package manager via 'maya pkg install <pkg>'. If a command is not found, you should suggest installing it. The system is aware of a /proc pseudo-filesystem (with meminfo, cpuinfo, uptime, version) and a firewall. File creation respects the 'umask'. You have a cron daemon and an 'at' daemon for scheduling tasks. A simulated service manager ('systemctl') is available. A 'gdb' debugger with backtrace support is available for compiled C code.
@@ -136,11 +137,30 @@ export const generatePlan = async (goal: string): Promise<TaskPlan | null> => {
                         }
                     }
                 }
-            }
-        });
+            } });
         return safelyParseJson<TaskPlan>(response.text, (e) => console.error("Failed to parse TaskPlan JSON:", response.text, e));
     } catch (e) { console.error(e); return null; }
-}
+};
+
+export const generateOptimizePlan = async (goal: string): Promise<OptimizePlan | null> => {
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: [{ role: 'user', parts: [{ text: `Create a concise optimization plan to achieve this goal: "${goal}". Respond with a JSON object of type OptimizePlan.` }] }],
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        goal: { type: Type.STRING },
+                        steps: { type: Type.ARRAY, items: { type: Type.STRING } },
+                        notes: { type: Type.STRING }
+                    }
+                }
+            } });
+        return safelyParseJson<OptimizePlan>(response.text, (e) => console.error("Failed to parse OptimizePlan JSON:", response.text, e));
+    } catch (e) { console.error(e); return null; }
+};
 
 export const refactorCode = async (code: string, instruction: string): Promise<string | null> => {
     try {
@@ -202,8 +222,7 @@ export const generateSyntaxHighlighting = async (code: string, fileName: string)
                         }
                     }
                 }
-            }
-        });
+            } });
         return safelyParseJson<HighlightedLine[]>(response.text, (e) => console.error("Failed to parse HighlightedLine[] JSON:", response.text, e));
     } catch (e) { console.error(e); return null; }
 };
@@ -230,31 +249,8 @@ export const generateExplanation = async (command: string): Promise<Explanation 
                         }
                     }
                 }
-            }
-        });
+            } });
         return safelyParseJson<Explanation>(response.text, (e) => console.error("Failed to parse Explanation JSON:", response.text, e));
-    } catch (e) { console.error(e); return null; }
-};
-
-export async function generateFileExplanation(fileContents: string): Promise<ExplainResult> {
-    return {
-        file: 'example.js',
-        summary: 'Example summary of what the code does.',
-        details: [
-            'Step-by-step breakdown of main logic.',
-            'Highlight of key functions and data flows.',
-            'Potential improvements or warnings.'
-        ]
-    };
-}
-
-export const generateCommandFix = async (command: string, error: string): Promise<string | null> => {
-    try {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: [{ role: 'user', parts: [{ text: `The command \`${command}\` failed with the error: "${error}". Suggest a single, likely fix. Only output the corrected command.` }] }],
-        });
-        return response.text.replace(/`/g, '').trim();
     } catch (e) { console.error(e); return null; }
 };
 
@@ -273,98 +269,11 @@ export const generateCommitMessage = async (diff: string): Promise<ConventionalC
                         subject: { type: Type.STRING }
                     }
                 }
-            }
-        });
+            } });
         return safelyParseJson<ConventionalCommit>(response.text, (e) => console.error("Failed to parse ConventionalCommit JSON:", response.text, e));
     } catch (e) { console.error(e); return null; }
 }
 
-export const analyzeSystemForOptimization = async (duOutput: string, psOutput: string): Promise<OptimizationReport | null> => {
-    try {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: [{ role: 'user', parts: [{ text: `Analyze the following system data for optimization opportunities (e.g., large files, resource-heavy processes). Suggest commands to fix them. The response must be a JSON object of type OptimizationReport.
-DU_OUTPUT:
-${duOutput}
----
-PS_OUTPUT:
-${psOutput}` }] }],
-             config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        summary: { type: Type.STRING },
-                        suggestions: {
-                            type: Type.ARRAY,
-                            items: {
-                                type: Type.OBJECT,
-                                properties: {
-                                    type: { type: Type.STRING },
-                                    target: { type: Type.STRING },
-                                    reason: { type: Type.STRING },
-                                    command: { type: Type.STRING }
-                                }
-                            }
-                        }
-                    }
-                }
-             }
-        });
-        return safelyParseJson<OptimizationReport>(response.text, (e) => console.error("Failed to parse OptimizationReport JSON:", response.text, e));
-    } catch(e) { console.error(e); return null; }
-};
-
-export const translateText = async (text: string, targetLang: string): Promise<string> => {
-     if (targetLang.toLowerCase() === 'en') return text;
-    try {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: [{ role: 'user', parts: [{ text: `Translate the following text to ${targetLang}. Only output the translation.\n\n${text}` }] }],
-        });
-        return response.text;
-    } catch (e) { console.error(e); return text; }
-};
-
-export const searchWithGoogle = async (query: string): Promise<{ text: string, sources: any[] }> => {
-    try {
-        const response: GenerateContentResponse = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: [{ role: 'user', parts: [{ text: query }] }],
-            config: {
-                tools: [{ googleSearch: {} }],
-            }
-        });
-        const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-        return { text: response.text, sources };
-    } catch (e) {
-        console.error(e);
-        return { text: 'Error performing search.', sources: [] };
-    }
-};
-
-export const simulateWget = async (url: string): Promise<{ content: string, fileName: string }> => {
-    const fileName = url.split('/').pop()?.split('?')[0] || 'index.html';
-    try {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: [{ role: 'user', parts: [{ text: `Generate a realistic but brief, simulated text content for a file downloaded from this URL: ${url}. For example, if it's an HTML page, provide a snippet. If it's a JSON API, provide a sample JSON. Only output the raw, simulated file content.` }] }],
-        });
-        return { content: response.text, fileName };
-    } catch (e) {
-        console.error(e);
-        return { content: `Error fetching content from ${url}`, fileName };
-    }
-};
-export const generateManPage = async (command: string): Promise<string> => {
-     try {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: [{ role: 'user', parts: [{ text: `Generate a man page for the linux command: ${command}. Format it in the standard man page sections (NAME, SYNOPSIS, DESCRIPTION, EXAMPLES).` }] }],
-        });
-        return response.text;
-    } catch (e) { console.error(e); return `Could not generate man page for ${command}.`; }
-};
 export const generateRecoveryPlan = async (goal: string, failedPlan: TaskPlan, error: string): Promise<TaskPlan | null> => {
     try {
         const response = await ai.models.generateContent({
@@ -393,8 +302,7 @@ Please generate a new, corrected plan to achieve the original goal, taking the f
                         }
                     }
                 }
-            }
-        });
+            } });
         return safelyParseJson<TaskPlan>(response.text, (e) => console.error("Failed to parse recovery TaskPlan JSON:", response.text, e));
     } catch(e) { console.error(e); return null; }
 };
@@ -452,8 +360,7 @@ export const analyzeSystemHealth = async (context: any): Promise<HealthReport | 
                         }}
                     }
                 }
-            }
-        });
+            } });
         return safelyParseJson<HealthReport>(response.text, (e) => console.error("Failed to parse HealthReport JSON:", response.text, e));
     } catch(e) { console.error(e); return null; }
 };
@@ -472,69 +379,9 @@ export const analyzeAiUsage = async (stats: any): Promise<AiUsageReport | null> 
                         refactors: { type: Type.NUMBER },
                     }
                  }
-            }
-        });
+            } });
         return safelyParseJson<AiUsageReport>(response.text, (e) => console.error("Failed to parse AiUsageReport JSON:", response.text, e));
     } catch(e) { console.error(e); return null; }
-};
-
-export const compileCCode = async (code: string): Promise<{ success: boolean, output: string, executable?: string, trace?: GdbFrame }> => {
-    try {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: [{
-                role: 'user', parts: [{
-                    text: `Analyze the following C code.
-1. Determine if it would compile successfully.
-2. If it compiles, predict its standard output.
-3. Generate a detailed, step-by-step execution trace, including function calls and the state of local variables at each line.
-The response must be a JSON object with properties: "success" (boolean), "output" (string), and "trace" (a recursive GdbFrame object).
-
-CODE:
-${code}`
-                }]
-            }],
-             config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        success: { type: Type.BOOLEAN },
-                        output: { type: Type.STRING },
-                        trace: {
-                            type: Type.OBJECT,
-                            properties: {
-                                line: { type: Type.NUMBER },
-                                functionName: { type: Type.STRING },
-                                variables: { type: Type.OBJECT, properties: {} },
-                                children: { type: Type.ARRAY, items: { $ref: '#/$defs/GdbFrame' } }
-                            },
-                            $defs: {
-                                GdbFrame: {
-                                    type: Type.OBJECT,
-                                    properties: {
-                                        line: { type: Type.NUMBER },
-                                        functionName: { type: Type.STRING },
-                                        variables: { type: Type.OBJECT, properties: {} },
-                                        children: { type: Type.ARRAY, items: { $ref: '#/$defs/GdbFrame' } }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-             }
-        });
-        const result = safelyParseJson<{ success: boolean, output: string, trace?: GdbFrame }>(response.text, (e) => console.error("Failed to parse C compile JSON:", response.text, e));
-        if (!result) return { success: false, output: 'Compiler simulation failed.' };
-
-        const executableContent = `#!MAYABIN\n${result.output}\n---TRACE---\n${JSON.stringify(result.trace)}`;
-        return { ...result, executable: executableContent };
-
-    } catch (e) {
-        console.error(e);
-        return { success: false, output: `Compiler simulation failed: ${e}` };
-    }
 };
 
 export const suggestEvolution = async (history: string[]): Promise<EvolutionSuggestion | null> => {
@@ -552,8 +399,7 @@ export const suggestEvolution = async (history: string[]): Promise<EvolutionSugg
                         explanation: { type: Type.STRING }
                     }
                 }
-            }
-        });
+            } });
         return safelyParseJson<EvolutionSuggestion>(response.text, (e) => console.error("Failed to parse EvolutionSuggestion JSON:", response.text, e));
     } catch(e) { console.error(e); return null; }
 };
@@ -577,23 +423,8 @@ export const analyzePermissions = async (lsOutput: string): Promise<SecurityRepo
                         }}
                     }
                 }
-            }
-        });
+            } });
         return safelyParseJson<SecurityReport>(response.text, (e) => console.error("Failed to parse SecurityReport JSON:", response.text, e));
-    } catch(e) { console.error(e); return null; }
-};
-
-export const scaffoldProject = async (description: string): Promise<ProjectScaffold | null> => {
-     try {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: [{ role: 'user', parts: [{ text: `Generate a file and directory scaffold for the following project description: "${description}". The response must be a JSON object of type ProjectScaffold, where keys are file paths and values are their content.\n\nExample: { "README.md": "# My Project", "src/main.js": "console.log(\\"hello\\")" }` }] }],
-            config: {
-                 responseMimeType: "application/json",
-                 responseSchema: { type: Type.OBJECT, properties: {} }
-            }
-        });
-        return safelyParseJson<ProjectScaffold>(response.text, (e) => console.error("Failed to parse ProjectScaffold JSON:", response.text, e));
     } catch(e) { console.error(e); return null; }
 };
 
@@ -617,26 +448,10 @@ export const critiqueScript = async (scriptContent: string): Promise<CritiqueRep
                         }}
                     }
                 }
-            }
-        });
+            } });
         return safelyParseJson<CritiqueReport>(response.text, (e) => console.error("Failed to parse CritiqueReport JSON:", response.text, e));
     } catch(e) { console.error(e); return null; }
 };
-export const repairScript = async (scriptContent: string, critique: CritiqueReport): Promise<string | null> => {
-    try {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: [{ role: 'user', parts: [{ text: `Here is a shell script and a list of identified problems. Please fix all the problems and return only the complete, corrected script block, without any explanation or markdown formatting.
-PROBLEMS:
-${JSON.stringify(critique.findings, null, 2)}
----
-ORIGINAL SCRIPT:
-${scriptContent}` }] }],
-        });
-        return response.text.replace(/```[\w]*\n/g, '').replace(/```\n/g, '').replace(/```/g, '').trim();
-    } catch(e) { console.error(e); return null; }
-};
-
 export const summarizeGitHistory = async (log: string): Promise<GitDigestReport | null> => {
      try {
         const response = await ai.models.generateContent({
@@ -651,18 +466,8 @@ export const summarizeGitHistory = async (log: string): Promise<GitDigestReport 
                         affected_files: { type: Type.ARRAY, items: { type: Type.STRING } }
                     }
                 }
-            }
-        });
+            } });
         return safelyParseJson<GitDigestReport>(response.text, (e) => console.error("Failed to parse GitDigestReport JSON:", response.text, e));
-    } catch(e) { console.error(e); return null; }
-};
-export const findCommitByDescription = async (log: string, description: string): Promise<string | null> => {
-    try {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: [{ role: 'user', parts: [{ text: `Analyze the following 'git log' and find the single commit hash that best matches this description: "${description}". Only output the full commit hash.\n\n${log}` }] }],
-        });
-        return response.text.trim().split(' ')[0];
     } catch(e) { console.error(e); return null; }
 };
 export const explainConcept = async (concept: string): Promise<LearningReport | null> => {
@@ -679,8 +484,7 @@ export const explainConcept = async (concept: string): Promise<LearningReport | 
                         example: { type: Type.STRING }
                     }
                  }
-            }
-        });
+            } });
         return safelyParseJson<LearningReport>(response.text, (e) => console.error("Failed to parse LearningReport JSON:", response.text, e));
     } catch(e) { console.error(e); return null; }
 };
@@ -706,8 +510,7 @@ ${log}` }] }],
                         }}
                     }
                 }
-            }
-        });
+            } });
         return safelyParseJson<JournalReport>(response.text, (e) => console.error("Failed to parse JournalReport JSON:", response.text, e));
     } catch(e) { console.error(e); return null; }
 };
@@ -728,8 +531,7 @@ export const generateSystemReport = async (data: any): Promise<SystemReport | nu
                         ip_address: { type: Type.STRING },
                     }
                  }
-            }
-        });
+            } });
         return safelyParseJson<SystemReport>(response.text, (e) => console.error("Failed to parse SystemReport JSON:", response.text, e));
     } catch(e) { console.error(e); return null; }
 };
@@ -753,8 +555,7 @@ export const documentScript = async (scriptContent: string): Promise<ScriptDocum
                         }}
                     }
                  }
-            }
-        });
+            } });
         return safelyParseJson<ScriptDocumentation>(response.text, (e) => console.error("Failed to parse ScriptDocumentation JSON:", response.text, e));
     } catch(e) { console.error(e); return null; }
 };
@@ -771,8 +572,7 @@ export const analyzeIntent = async (prompt: string): Promise<IntentAnalysis> => 
                         reason: { type: Type.STRING }
                     }
                 }
-            }
-        });
+            } });
         const result = safelyParseJson<{ isHarmful: boolean, reason: string }>(response.text, e => console.error(e));
         return result || { isHarmful: false, reason: '' };
     } catch(e) { console.error(e); return { isHarmful: true, reason: 'Intent analysis failed.' }; }
@@ -800,8 +600,7 @@ export const suggestOrganization = async (fileList: string): Promise<Organizatio
                         commands: { type: Type.ARRAY, items: { type: Type.STRING } }
                     }
                 }
-            }
-        });
+            } });
         return safelyParseJson<OrganizationPlan>(response.text, (e) => console.error("Failed to parse OrganizationPlan JSON:", response.text, e));
     } catch(e) { console.error(e); return null; }
 };
@@ -832,39 +631,8 @@ ${JSON.stringify(trace, null, 2)}` }] }],
                         fixed_script: { type: Type.STRING }
                     }
                 }
-            }
-        });
+            } });
         return safelyParseJson<DebugReport>(response.text, (e) => console.error("Failed to parse DebugReport JSON:", response.text, e));
-    } catch(e) { console.error(e); return null; }
-};
-
-export const getDynamicDependencies = async (command: string): Promise<string[]> => {
-    try {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: [{ role: 'user', parts: [{ text: `List the typical shared library dependencies for the Linux command '${command}'. Output as a simple list, one per line.` }] }],
-        });
-        return response.text.split('\n').filter(Boolean);
-    } catch (e) { console.error(e); return []; }
-};
-
-export const getCommandSummary = async (command: string): Promise<string> => {
-     try {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: [{ role: 'user', parts: [{ text: `Provide the standard, one-line 'NAME' section summary for the linux man page of '${command}'.` }] }],
-        });
-        return response.text;
-    } catch (e) { console.error(e); return `${command}: no summary available.` }
-};
-
-export const generateDockerfile = async (context: string): Promise<string | null> => {
-    try {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: [{ role: 'user', parts: [{ text: `Act as a DevOps expert. Analyze the following project file structure and content, and generate an optimized, multi-stage Dockerfile for it. Only output the raw Dockerfile content.\n\n${context}` }] }],
-        });
-        return response.text.replace(/```[\w]*\n/g, '').replace(/```\n/g, '').replace(/```/g, '').trim();
     } catch(e) { console.error(e); return null; }
 };
 
@@ -884,8 +652,7 @@ export const getDiagnosticCommands = async (problem: string): Promise<Troublesho
                         }
                     }
                 }
-            }
-        });
+            } });
         return safelyParseJson<TroubleshootingStep[]>(response.text, e => console.error(e));
     } catch(e) { console.error(e); return null; }
 }
@@ -912,8 +679,7 @@ export const diagnoseProblem = async (problem: string, data: any[]): Promise<Tro
                         }
                     }
                 }
-            }
-        });
+            } });
         return safelyParseJson<TroubleshootingReport>(response.text, e => console.error(e));
     } catch(e) { console.error(e); return null; }
 }
@@ -947,43 +713,12 @@ export const summarizeHistory = async (history: string[]): Promise<HistoryDigest
                         }}
                     }
                 }
-            }
-        });
+            } });
         return safelyParseJson<HistoryDigestReport>(response.text, e => console.error(e));
     } catch (e) {
         console.error(e);
         return null;
     }
-};
-
-export const searchManPages = async (query: string): Promise<AproposReport | null> => {
-     try {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: [{ role: 'user', parts: [{ text: `Search for Linux commands related to the query "${query}". For each command, provide its name and a one-line description. The response must be a JSON object of type AproposReport.` }] }],
-            config: {
-                 responseMimeType: "application/json",
-                 responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        results: {
-                            type: Type.ARRAY,
-                            items: {
-                                type: Type.OBJECT,
-                                properties: {
-                                    name: { type: Type.STRING },
-                                    description: { type: Type.STRING }
-                                },
-                                required: ['name', 'description']
-                            }
-                        }
-                    },
-                    required: ['results']
-                 }
-            }
-        });
-        return safelyParseJson<AproposReport>(response.text, (e) => console.error("Failed to parse AproposReport JSON:", response.text, e));
-    } catch(e) { console.error(e); return null; }
 };
 
 export const performSystemAudit = async (data: any): Promise<AuditReport | null> => {
@@ -1014,8 +749,7 @@ export const performSystemAudit = async (data: any): Promise<AuditReport | null>
                         }
                     }
                 }
-            }
-        });
+            } });
         return safelyParseJson<AuditReport>(response.text, (e) => console.error("Failed to parse AuditReport JSON:", response.text, e));
     } catch (e) {
         console.error(e);
@@ -1048,8 +782,29 @@ export const scanPorts = async (hostname: string): Promise<PortScanReport | null
                     },
                     required: ['results']
                  }
-            }
-        });
+            } });
         return safelyParseJson<PortScanReport>(response.text, (e) => console.error("Failed to parse PortScanReport JSON:", response.text, e));
     } catch(e) { console.error(e); return null; }
+};
+export const generateFileExplanation = async (contents: string): Promise<ExplainResult | null> => {
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: [{ role: 'user', parts: [{ text: `Explain the following file. Provide a brief summary and 3-7 bullet points for details. The response must be a JSON object of type ExplainResult with fields { file, summary, details }.
+
+${contents}` }] }],
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        file: { type: Type.STRING },
+                        summary: { type: Type.STRING },
+                        details: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    }
+                }
+            }
+        });
+        return safelyParseJson<ExplainResult>(response.text, (e) => console.error("Failed to parse ExplainResult JSON:", response.text, e));
+    } catch (e) { console.error(e); return null; }
 };

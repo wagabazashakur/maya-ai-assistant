@@ -34,6 +34,13 @@ export type TaskPlan = {
     steps: PlanStep[];
 };
 
+// --- Added for maya optimize ---
+export interface OptimizePlan {
+    goal: string;
+    steps: string[];
+    notes?: string;
+}
+
 export type ConfirmationState = {
     command: string;
     level: 'risky' | 'destructive' | 'suggestion' | 'ai_suggestion' | 'plan_start' | 'plan_step' | 'plan_recover' | 'refactor_review' | 'checkout_apply';
@@ -81,6 +88,8 @@ export type LogPanelVisibility = {
     aliasesVisible: boolean;
     auditHistoryVisible: boolean;
     explainHistoryVisible: boolean;
+    optimizeHistoryVisible: boolean;
+    oiHistoryVisible: boolean;
 };
 
 export type OnboardingStatus = 'welcome' | 'theme' | 'finished';
@@ -918,4 +927,19 @@ export type HistoryTask = {
 
 export type HistoryDigestReport = {
     tasks: HistoryTask[];
+};
+
+export type OIResult = {
+    kind: 'python' | 'shell';
+    input: string;
+    output: string;
+    error?: string;
+    success: boolean;
+    dryRun: boolean;
+};
+
+export type OIHistoryEntry = {
+    timestamp: string;
+    command: string;
+    result: OIResult;
 };

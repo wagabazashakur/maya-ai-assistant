@@ -16,6 +16,10 @@ const AUDIT_HISTORY_KEY = 'maya_audit_history';
 const AUDIT_HISTORY_LIMIT = 50;
 const EXPLAIN_HISTORY_KEY = 'maya_explain_history';
 const EXPLAIN_HISTORY_LIMIT = 50;
+const OPTIMIZE_HISTORY_KEY = 'maya_optimize_history';
+const OPTIMIZE_HISTORY_LIMIT = 50;
+const OI_HISTORY_KEY = 'maya_oi_history';
+const OI_HISTORY_LIMIT = 50;
 
 export const getUsageLog = (): string[] => {
     try {
@@ -233,5 +237,43 @@ export const setExplainHistory = (history: any[]) => {
         localStorage.setItem(EXPLAIN_HISTORY_KEY, JSON.stringify(capped));
     } catch (error) {
         console.error("Failed to save Explain History to localStorage:", error);
+    }
+};
+
+export const getOptimizeHistory = (): any[] => {
+    try {
+        const stored = localStorage.getItem(OPTIMIZE_HISTORY_KEY);
+        return stored ? JSON.parse(stored) : [];
+    } catch (error) {
+        console.error("Failed to parse Optimize History from localStorage:", error);
+        return [];
+    }
+};
+
+export const setOptimizeHistory = (history: any[]) => {
+    try {
+        const capped = history.slice(-OPTIMIZE_HISTORY_LIMIT);
+        localStorage.setItem(OPTIMIZE_HISTORY_KEY, JSON.stringify(capped));
+    } catch (error) {
+        console.error("Failed to save Optimize History to localStorage:", error);
+    }
+};
+
+export const getOIHistory = (): any[] => {
+    try {
+        const stored = localStorage.getItem(OI_HISTORY_KEY);
+        return stored ? JSON.parse(stored) : [];
+    } catch (error) {
+        console.error("Failed to parse OI History from localStorage:", error);
+        return [];
+    }
+};
+
+export const setOIHistory = (history: any[]) => {
+    try {
+        const capped = history.slice(-OI_HISTORY_LIMIT);
+        localStorage.setItem(OI_HISTORY_KEY, JSON.stringify(capped));
+    } catch (error) {
+        console.error("Failed to save OI History to localStorage:", error);
     }
 };

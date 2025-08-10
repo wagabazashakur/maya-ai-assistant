@@ -47,7 +47,7 @@ export const classifyCommand = (cmd: string): 'safe' | 'risky' | 'destructive' =
     ];
 
     // Whitelist maya commands that are definitely safe
-    if (/^maya (remember|recall|forget|fix|config|lang|backup|do|refactor|debug|log|explain|code|checkout|pkg|check|report|evolve|learn|journal|secure|optimize|new-project|critique|repair|git-digest|git-find|document|sys-report|version|troubleshoot|dockerize|git-commit|audit|history-digest|complete-project|explain)/.test(cmd)) {
+    if (/^maya (remember|recall|forget|fix|config|lang|backup|do|refactor|debug|log|explain|code|checkout|pkg|check|report|evolve|learn|journal|secure|optimize|new-project|critique|repair|git-digest|git-find|document|sys-report|version|troubleshoot|dockerize|git-commit|audit|history-digest|complete-project|explain|optimize|run-script|system-check)/.test(cmd)) {
         return 'safe';
     }
     

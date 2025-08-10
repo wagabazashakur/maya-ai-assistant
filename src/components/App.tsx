@@ -66,9 +66,13 @@ export const App: React.FC = () => {
                     gitLog={mayaState.gitLog}
                     auditHistory={mayaState.auditHistory}
                     explainHistory={mayaState.explainHistory}
+                    optimizeHistory={mayaState.optimizeHistory}
+                    oiHistory={mayaState.oiHistory}
                     runAudit={mayaState.runAudit}
                     clearAuditHistory={mayaState.clearAuditHistory}
                     clearExplainHistory={mayaState.clearExplainHistory}
+                    clearOptimizeHistory={mayaState.clearOptimizeHistory}
+                    clearOIHistory={mayaState.clearOIHistory}
                 />
             )}
         </div>
