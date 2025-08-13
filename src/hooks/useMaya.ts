@@ -481,8 +481,28 @@ export const useMaya = () => {
     const submitCommand = async (cmd: string) => { /* ... */ };
     const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => { /* ... */ };
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => { /* ... */ };
-    const handleFinishOnboarding = () => { /* ... */ };
-    const updateConfig = (key: keyof UserConfiguration, value: any) => { /* ... */ };
+    const handleFinishOnboarding = () => {
+        setOnboardingComplete(true);
+        setOnboardingCompleteFlag();
+        // Re-apply theme from config after onboarding
+        if (config.theme) {
+            document.body.dataset.theme = config.theme;
+        }
+        // Optionally force a re-render by updating config state
+        setConfig(getAppConfig());
+    };
+    const updateConfig = (key: keyof UserConfiguration, value: any) => {
+        // Update config state
+        setConfig(prev => {
+            const next = { ...prev, [key]: value };
+            setAppConfig(next);
+            // If theme is changed, update body attribute immediately
+            if (key === 'theme') {
+                document.body.dataset.theme = value;
+            }
+            return next;
+        });
+    };
     const handleVimSaveAndExit = (layout: VimLayout, action?: string) => { /* ... */ };
     const onVimAiEdit = () => { /* ... */ };
 
