@@ -1,0 +1,1009 @@
+/* Basic Reset & Global Styles */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    --font-family: 'Fira Code', monospace;
+    font-family: var(--font-family);
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    transition: background-color 0.3s, color 0.3s;
+}
+
+body[data-theme="dark"] {
+    --bg-color: #0d1117;
+    --terminal-bg: #010409;
+    --text-color: #c9d1d9;
+    --prompt-color: #58a6ff;
+    --success-color: #3fb950;
+    --warning-color: #d29922;
+    --error-color: #f85149;
+    --gemini-color: #8b949e;
+    --border-color: #30363d;
+    --diff-add-bg: rgba(46, 160, 67, 0.15);
+    --diff-remove-bg: rgba(248, 81, 73, 0.15);
+    --diff-add-color: #3fb950;
+    --diff-remove-color: #f85149;
+    --commit-hash-color: #e3b341;
+    --button-bg: #21262d;
+    --button-hover-bg: #30363d;
+    --button-primary-bg: #238636;
+    --button-primary-hover-bg: #2ea043;
+    --selection-bg: #c9d1d9;
+    --selection-color: #010409;
+    --token-keyword: #ff7b72;
+    --token-string: #a5d6ff;
+    --token-comment: #8b949e;
+    --token-variable: #ffa657;
+    --token-function: #d2a8ff;
+    --token-number: #79c0ff;
+    --token-operator: #ff7b72;
+    --caret-color: #c9d1d9;
+    --ls-dir-color: #58a6ff;
+    --ls-exec-color: #3fb950;
+    --ls-link-color: #82aaff;
+    --ls-archive-color: #d29922;
+    --ls-fifo-color: #f07178;
+}
+
+body[data-theme="light"] {
+    --bg-color: #f6f8fa;
+    --terminal-bg: #ffffff;
+    --text-color: #24292e;
+    --prompt-color: #0366d6;
+    --success-color: #22863a;
+    --warning-color: #b08800;
+    --error-color: #d73a49;
+    --gemini-color: #586069;
+    --border-color: #e1e4e8;
+    --diff-add-bg: #e6ffed;
+    --diff-remove-bg: #ffeef0;
+    --diff-add-color: #22863a;
+    --diff-remove-color: #d73a49;
+    --commit-hash-color: #b08800;
+    --button-bg: #f6f8fa;
+    --button-hover-bg: #e1e4e8;
+    --button-primary-bg: #2ea44f;
+    --button-primary-hover-bg: #2c974b;
+    --selection-bg: #24292e;
+    --selection-color: #ffffff;
+    --token-keyword: #d73a49;
+    --token-string: #032f62;
+    --token-comment: #6a737d;
+    --token-variable: #e36209;
+    --token-function: #6f42c1;
+    --token-number: #005cc5;
+    --token-operator: #d73a49;
+    --caret-color: #24292e;
+    --ls-dir-color: #0366d6;
+    --ls-exec-color: #22863a;
+    --ls-link-color: #6f42c1;
+    --ls-archive-color: #b08800;
+    --ls-fifo-color: #d73a49;
+}
+
+#root {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Main Layout */
+.app-container {
+    display: flex;
+    flex: 1;
+    height: 100%;
+    overflow: hidden;
+}
+
+.panel {
+    padding: 1rem;
+    overflow-y: auto;
+    height: 100%;
+    border-left: 1px solid var(--border-color);
+    position: relative;
+}
+
+.cli-panel {
+    flex: 3;
+    display: flex;
+    flex-direction: column;
+    border-left: none;
+}
+
+.log-panel {
+    flex: 2;
+    background-color: var(--terminal-bg);
+    font-size: 0.85em;
+    word-wrap: break-word;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Custom Scrollbar */
+.panel::-webkit-scrollbar,
+.memory-display pre::-webkit-scrollbar,
+.log-content::-webkit-scrollbar,
+.vim-editor::-webkit-scrollbar,
+.vim-line-numbers::-webkit-scrollbar,
+.less-content::-webkit-scrollbar,
+.watch-output::-webkit-scrollbar,
+.blame-content::-webkit-scrollbar,
+.gdb-code::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.panel::-webkit-scrollbar-track,
+.memory-display pre::-webkit-scrollbar-track,
+.log-content::-webkit-scrollbar-track,
+.vim-editor::-webkit-scrollbar-track,
+.vim-line-numbers::-webkit-scrollbar-track,
+.less-content::-webkit-scrollbar-track,
+.watch-output::-webkit-scrollbar-track,
+.blame-content::-webkit-scrollbar-track,
+.gdb-code::-webkit-scrollbar-track {
+    background: var(--terminal-bg);
+}
+
+.panel::-webkit-scrollbar-thumb,
+.memory-display pre::-webkit-scrollbar-thumb,
+.log-content::-webkit-scrollbar-thumb,
+.vim-editor::-webkit-scrollbar-thumb,
+.vim-line-numbers::-webkit-scrollbar-thumb,
+.less-content::-webkit-scrollbar-thumb,
+.watch-output::-webkit-scrollbar-thumb,
+.blame-content::-webkit-scrollbar-thumb,
+.gdb-code::-webkit-scrollbar-thumb {
+    background-color: var(--border-color);
+    border-radius: 4px;
+}
+
+/* CLI Panel Styles */
+.output-area {
+    flex-grow: 1;
+    overflow-y: auto;
+    position: relative;
+}
+
+.output-line {
+    margin-bottom: 0.5rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    display: flex;
+    align-items: flex-start;
+}
+
+.output-line.user {
+    color: var(--text-color); /* The prompt is now part of the text */
+}
+
+.output-line.model::before,
+.output-line.system::before,
+.output-line.debug::before {
+    font-weight: bold;
+    flex-shrink: 0;
+    margin-right: 1ch;
+}
+
+.output-line.model::before {
+    content: "[MAYA]";
+    color: var(--success-color);
+}
+
+.output-line.system::before {
+    content: "[MAYA]";
+    color: var(--warning-color);
+}
+
+.output-line.debug::before {
+    content: "[DEBUG]";
+    color: var(--gemini-color);
+    font-weight: normal;
+}
+
+.output-line.system span {
+    color: var(--warning-color);
+}
+
+.output-line.debug span {
+    color: var(--gemini-color);
+    font-style: italic;
+}
+
+.input-area {
+    display: flex;
+    align-items: center;
+    margin-top: 1rem;
+    flex-shrink: 0;
+}
+
+.input-area .prompt {
+    color: var(--text-color);
+    white-space: nowrap;
+}
+
+#command-input {
+    flex-grow: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-color);
+    font-family: var(--font-family);
+    font-size: 1em;
+    outline: none;
+    padding-left: 0.5ch;
+}
+
+#command-input:focus {
+    caret-color: var(--text-color);
+}
+
+.search-result {
+    padding-left: 1rem;
+    color: var(--gemini-color);
+    height: 1.5em; /* Reserve space to prevent layout shift */
+}
+
+.completion-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 0.5rem;
+    padding: 0.5rem;
+    margin-top: 0.5rem;
+    border: 1px dashed var(--border-color);
+    border-radius: 4px;
+}
+
+.completion-item {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+
+/* Log Panel Styles */
+.log-panel summary {
+    color: var(--prompt-color);
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+    cursor: pointer;
+    font-weight: bold;
+    list-style: none; /* Remove default marker */
+    position: relative;
+}
+
+.log-panel summary::before {
+    content: '▶';
+    margin-right: 0.5ch;
+    display: inline-block;
+    transition: transform 0.2s;
+    position: absolute;
+    left: -1rem;
+    top: 0.05rem;
+}
+
+.log-panel details[open] > summary::before {
+    transform: rotate(90deg);
+}
+
+.memory-display {
+    padding-bottom: 1rem;
+    margin-bottom: 1rem;
+    padding-left: 1rem;
+}
+
+details.memory-display, details.log-display {
+    border-bottom: 1px solid var(--border-color);
+}
+
+details.memory-display:last-of-type, details.log-display:last-of-type {
+     border-bottom: none;
+}
+
+.memory-display pre, .log-content {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    background-color: var(--bg-color);
+    padding: 0.5rem;
+    border-radius: 4px;
+    color: var(--text-color);
+    max-height: 150px;
+    overflow-y: auto;
+    flex-shrink: 0;
+}
+
+.git-log-entry {
+    border-bottom: 1px dashed var(--border-color);
+    padding-bottom: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+.git-log-entry:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+.commit-hash {
+    color: var(--commit-hash-color);
+    font-weight: bold;
+}
+.commit-details {
+    font-size: 0.9em;
+    color: var(--gemini-color);
+    margin: 0.25rem 0;
+}
+.commit-message {
+    font-weight: bold;
+    font-style: italic;
+    padding-left: 1rem;
+    margin-bottom: 0.25rem;
+}
+.commit-filepath {
+    font-size: 0.9em;
+    color: var(--gemini-color);
+    padding-left: 1rem;
+}
+
+
+.log-display {
+    overflow-y: auto;
+    flex-grow: 1;
+    padding-left: 1rem;
+}
+
+
+.log-entry {
+    padding: 0.5rem;
+    border-bottom: 1px dashed var(--border-color);
+    margin-bottom: 0.5rem;
+}
+.log-entry:last-child {
+    border-bottom: none;
+}
+
+.log-entry time {
+    color: var(--gemini-color);
+    font-size: 0.9em;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.log-entry pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    background-color: var(--bg-color);
+    padding: 0.5rem;
+    border-radius: 4px;
+    color: var(--text-color);
+}
+
+.log-entry strong {
+    color: var(--success-color);
+}
+
+/* Loading Spinner */
+.spinner {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: spinner-border .75s linear infinite;
+    vertical-align: middle;
+}
+
+@keyframes spinner-border {
+    to { transform: rotate(360deg); }
+}
+
+/* Diff View Styles */
+.diff-view, .diff-output {
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 0.5rem;
+    margin-bottom: 1rem;
+    font-size: 0.9em;
+}
+
+.output-line .diff-output {
+    border: none;
+    padding: 0;
+    margin-bottom: 0;
+}
+
+.diff-view pre, .diff-output pre {
+    white-space: pre;
+    overflow-x: auto;
+}
+
+.diff-line, .diff-output-line {
+    display: flex;
+    width: 100%;
+}
+
+.diff-line.added, .diff-output-line.added {
+    background-color: var(--diff-add-bg);
+}
+
+.diff-line.removed, .diff-output-line.removed {
+    background-color: var(--diff-remove-bg);
+}
+
+.diff-prefix {
+    flex-shrink: 0;
+    width: 2ch;
+    text-align: center;
+    user-select: none;
+}
+
+.diff-line.added span:first-child {
+    color: var(--diff-add-color);
+}
+.diff-line.removed span:first-child {
+    color: var(--diff-remove-color);
+}
+.diff-output-line.added span {
+    color: var(--diff-add-color);
+}
+.diff-output-line.removed span {
+    color: var(--diff-remove-color);
+}
+
+
+/* Onboarding View Styles */
+.onboarding-view {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0,0,0,0.5);
+    z-index: 1000;
+}
+
+.onboarding-modal {
+    background-color: var(--terminal-bg);
+    color: var(--text-color);
+    padding: 2rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    width: 90%;
+    max-width: 600px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+.onboarding-modal h1, .onboarding-modal h2 {
+    color: var(--prompt-color);
+    margin-bottom: 1rem;
+}
+
+.onboarding-modal p {
+    margin-bottom: 1.5rem;
+    line-height: 1.6;
+}
+
+.onboarding-nav {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 2rem;
+    border-top: 1px solid var(--border-color);
+    padding-top: 1rem;
+}
+
+.onboarding-nav button {
+    padding: 0.5rem 1rem;
+    font-family: inherit;
+    font-weight: bold;
+    border-radius: 6px;
+    cursor: pointer;
+    background-color: var(--button-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    transition: background-color 0.2s;
+}
+
+.onboarding-nav button:hover {
+    background-color: var(--button-hover-bg);
+}
+
+.onboarding-nav button.primary {
+    background-color: var(--button-primary-bg);
+    border-color: var(--button-primary-bg);
+}
+.onboarding-nav button.primary:hover {
+    background-color: var(--button-primary-hover-bg);
+}
+
+.theme-selector {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.theme-selector button {
+    flex: 1;
+    padding: 1rem;
+    font-size: 1.2rem;
+    font-weight: bold;
+    border: 2px solid var(--border-color);
+    border-radius: 6px;
+    cursor: pointer;
+    background-color: transparent;
+    color: var(--text-color);
+    transition: all 0.2s;
+}
+
+.theme-selector button.active {
+    border-color: var(--prompt-color);
+    background-color: var(--button-hover-bg);
+}
+
+/* Top View Styles */
+.top-view {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+.top-summary {
+    flex-shrink: 0;
+    margin-bottom: 1rem;
+    white-space: pre-wrap;
+    font-family: var(--font-family);
+}
+.top-summary pre {
+    white-space: pre-wrap;
+}
+
+.top-processes {
+    flex-grow: 1;
+    overflow-y: auto;
+    font-family: var(--font-family);
+}
+
+.top-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.top-table th, .top-table td {
+    text-align: left;
+    padding: 0.25rem 0.5rem;
+    white-space: nowrap;
+}
+
+.top-table th {
+    font-weight: bold;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.top-table .right-align {
+    text-align: right;
+}
+
+
+.display-toggle {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    background: var(--button-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    cursor: pointer;
+    border-radius: 4px;
+    padding: 0.25rem;
+    z-index: 10;
+}
+.display-toggle:hover {
+    background-color: var(--button-hover-bg);
+}
+.display-toggle svg {
+    display: block;
+}
+
+/* Vim View Styles */
+.vim-view {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    background-color: var(--terminal-bg);
+}
+
+.vim-split-container {
+    display: flex;
+    flex-grow: 1;
+    overflow: hidden;
+}
+.vim-split-container.vertical {
+    flex-direction: column;
+}
+
+.vim-separator {
+    background-color: var(--border-color);
+    flex-shrink: 0;
+}
+.vim-separator.horizontal {
+    width: 1px;
+    cursor: col-resize;
+}
+.vim-separator.vertical {
+    height: 1px;
+    cursor: row-resize;
+}
+
+.vim-editor-pane {
+    flex-grow: 1;
+    display: flex;
+    overflow: hidden;
+    position: relative; /* For status bar positioning */
+}
+
+.vim-line-numbers {
+    flex-shrink: 0;
+    padding: 0.5rem;
+    text-align: right;
+    color: var(--gemini-color);
+    user-select: none;
+    overflow-y: hidden; /* Scroll is handled by JS */
+    line-height: 1.5;
+}
+
+.vim-editor {
+    flex-grow: 1;
+    position: relative;
+    overflow: hidden; /* Let textarea handle scroll */
+}
+
+.vim-highlighted-content {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 0.5rem;
+    line-height: 1.5;
+    white-space: pre;
+    font-family: var(--font-family);
+    pointer-events: none;
+    overflow: hidden;
+}
+.vim-highlighted-content > div {
+    min-height: 1.5em; /* Ensure empty lines are rendered */
+}
+
+.vim-textarea {
+    width: 100%;
+    height: 100%;
+    background-color: transparent;
+    color: transparent;
+    border: none;
+    font-family: var(--font-family);
+    font-size: 1em;
+    resize: none;
+    outline: none;
+    padding: 0.5rem;
+    line-height: 1.5;
+    caret-color: var(--caret-color);
+    position: relative;
+    z-index: 1;
+}
+
+.vim-textarea::selection {
+    background-color: var(--selection-bg);
+    color: transparent;
+}
+
+.vim-status-bar {
+    flex-shrink: 0;
+    background-color: var(--gemini-color);
+    color: var(--terminal-bg);
+    padding: 0.25rem 0.5rem;
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+}
+.vim-status-bar.active {
+     background-color: var(--text-color);
+}
+
+
+.vim-command-input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: var(--terminal-bg);
+    font-family: var(--font-family);
+    font-size: 1em;
+    outline: none;
+}
+
+.vim-completion-list {
+    position: absolute;
+    bottom: 1.5em; /* Above status bar */
+    left: 0;
+    right: 0;
+    background-color: var(--button-hover-bg);
+    border: 1px solid var(--border-color);
+    padding: 0.5rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 0.5rem;
+    z-index: 2;
+    max-height: 10em;
+    overflow-y: auto;
+}
+
+/* Syntax Highlighting Tokens */
+.token-keyword { color: var(--token-keyword); font-weight: bold; }
+.token-string { color: var(--token-string); }
+.token-comment { color: var(--token-comment); font-style: italic; }
+.token-variable { color: var(--token-variable); }
+.token-function { color: var(--token-function); }
+.token-number { color: var(--token-number); }
+.token-operator { color: var(--token-operator); }
+.token-default { color: var(--text-color); }
+
+/* Watch and Less View Styles */
+.watch-view, .less-view, .tail-view {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+}
+
+.watch-header {
+    flex-shrink: 0;
+    padding-bottom: 0.5rem;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+    white-space: pre-wrap;
+}
+
+.watch-output, .less-content, .tail-content {
+    flex-grow: 1;
+    overflow: auto;
+    white-space: pre;
+    font-family: var(--font-family);
+}
+
+.less-status-bar {
+    flex-shrink: 0;
+    background-color: var(--text-color);
+    color: var(--terminal-bg);
+    padding: 0.25rem 0.5rem;
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+}
+.less-highlight {
+    background-color: var(--text-color);
+    color: var(--terminal-bg);
+}
+
+
+/* Blame View Styles */
+.blame-view {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+}
+
+.blame-content {
+    flex-grow: 1;
+    overflow: auto;
+    white-space: pre;
+    font-family: var(--font-family);
+}
+
+.blame-line {
+    display: flex;
+}
+
+.blame-meta {
+    flex-shrink: 0;
+    color: var(--gemini-color);
+    padding-right: 1rem;
+    user-select: none;
+}
+
+.blame-hash {
+    color: var(--commit-hash-color);
+    margin-right: 1ch;
+}
+
+.blame-author {
+    display: inline-block;
+    width: 10ch;
+    margin-right: 1ch;
+}
+
+.blame-date {
+    margin-right: 1ch;
+}
+.blame-linenum {
+    color: var(--prompt-color);
+}
+
+.blame-code {
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+/* Rebase View Styles */
+.rebase-view {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 1rem;
+}
+.rebase-view textarea {
+    flex-grow: 1;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    font-family: var(--font-family);
+    font-size: 1em;
+    padding: 0.5rem;
+    margin-bottom: 1rem;
+}
+.rebase-instructions {
+    color: var(--gemini-color);
+    font-style: italic;
+    margin-bottom: 1rem;
+}
+.rebase-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+}
+.rebase-actions button {
+    padding: 0.5rem 1rem;
+    font-family: inherit;
+    font-weight: bold;
+    border-radius: 6px;
+    cursor: pointer;
+    background-color: var(--button-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+.rebase-actions button.primary {
+    background-color: var(--button-primary-bg);
+}
+
+/* GDB View Styles */
+.gdb-view {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+}
+.gdb-main {
+    display: flex;
+    flex-grow: 1;
+    overflow: hidden;
+}
+.gdb-code {
+    flex-grow: 3;
+    overflow: auto;
+    font-family: var(--font-family);
+    padding: 0.5rem;
+}
+.gdb-sidebar {
+    flex-grow: 1;
+    border-left: 1px solid var(--border-color);
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+.gdb-panel {
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 0.5rem;
+}
+.gdb-panel h3 {
+    margin-bottom: 0.5rem;
+    color: var(--prompt-color);
+}
+.gdb-panel ul {
+    list-style-type: none;
+    padding: 0;
+    font-size: 0.9em;
+}
+.gdb-panel li.active-frame {
+    font-weight: bold;
+}
+.gdb-code-line {
+    white-space: pre;
+    position: relative;
+    padding-left: 1ch;
+}
+.gdb-line-number {
+    display: inline-block;
+    width: 4ch;
+    color: var(--gemini-color);
+    text-align: right;
+    margin-right: 1ch;
+    user-select: none;
+}
+.gdb-code-line.current-line {
+    background-color: var(--button-hover-bg);
+}
+.gdb-code-line.breakpoint::before {
+    content: "●";
+    color: var(--error-color);
+    position: absolute;
+    left: -1ch;
+}
+.gdb-output {
+    flex-shrink: 0;
+    padding: 0.5rem;
+    border-top: 1px solid var(--border-color);
+    min-height: 2em;
+}
+.gdb-input {
+    flex-shrink: 0;
+    border-top: 1px solid var(--border-color);
+}
+.gdb-input form {
+    display: flex;
+}
+.gdb-input span {
+    padding: 0.5rem;
+}
+.gdb-input input {
+    flex-grow: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-color);
+    font-family: var(--font-family);
+    outline: none;
+    font-size: 1em;
+}
+
+/* LS Colors */
+.ls-color-dir { color: var(--ls-dir-color); font-weight: bold; }
+.ls-color-exec { color: var(--ls-exec-color); font-weight: bold; }
+.ls-color-link { color: var(--ls-link-color); font-style: italic; }
+.ls-color-archive { color: var(--ls-archive-color); }
+.ls-color-fifo { color: var(--ls-fifo-color); }
+
+.diff-output-line.added span { color: var(--success-color); }
+.diff-output-line.removed span { color: var(--error-color); }
+
+.commit-hash {
+    color: var(--warning-color);
+}
+
+.panel-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.btn {
+    background: var(--button-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 0.25rem 0.6rem;
+    cursor: pointer;
+}
+.btn:hover {
+    background: var(--button-hover-bg);
+}
+.btn-danger {
+    border-color: #8b0000;
+}

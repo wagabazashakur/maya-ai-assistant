@@ -1,0 +1,33 @@
+{
+  "name": "maya-v.1---intelligent-cli-assistant",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run --environment jsdom",
+    "test:watch": "vitest --environment jsdom",
+    "assets:capture": "node scripts/capture-assets.mjs",
+    "assets:diagram": "npx mmdc -i docs/architecture.mmd -o docs/images/architecture.png -b transparent -w 1280",
+    "assets:optimize": "npx oxipng -o 3 docs/images/*.png || true"
+  },
+  "dependencies": {
+    "@google/genai": "0.14.0",
+    "diff": "5.2.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@mermaid-js/mermaid-cli": "^11.9.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.0.0",
+    "@types/node": "^22.14.0",
+    "jsdom": "^24.1.0",
+    "playwright": "^1.47.2",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0",
+    "vitest": "^1.6.0"
+  }
+}
